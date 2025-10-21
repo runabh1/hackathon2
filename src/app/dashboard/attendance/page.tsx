@@ -103,54 +103,55 @@ export default function AttendancePage() {
                 const totalClasses = subject.attended + subject.missed;
                 const percentage = calculatePercentage(subject.attended, subject.missed);
                 return (
-                    <Card key={subject.name} className="p-4 transition-all hover:shadow-md hover:-translate-y-1">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center">
-                            <div className="flex-grow mb-4 sm:mb-0">
-                                <p className="font-bold text-lg">{subject.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    Total Classes: <span className="font-bold text-primary">{totalClasses}</span>
-                                </p>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <Progress value={percentage} className="w-full sm:w-64 h-2" />
-                                    <span className={cn(
-                                        "font-semibold text-sm",
-                                        percentage >= 75 ? "text-green-600" : "text-orange-500"
-                                    )}>
-                                        {percentage}%
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-4 self-start sm:self-center">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium">Attended:</span>
-                                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'attended', 'decrement')}>
-                                        <Minus className="h-4 w-4" />
-                                    </Button>
-                                    <span className="font-bold w-4 text-center">{subject.attended}</span>
-                                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'attended', 'increment')}>
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium">Missed:</span>
-                                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'missed', 'decrement')}>
-                                        <Minus className="h-4 w-4" />
-                                    </Button>
-                                    <span className="font-bold w-4 text-center">{subject.missed}</span>
-                                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'missed', 'increment')}>
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                
-                                <Button size="icon" variant="ghost" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={() => handleRemoveSubject(subject.name)}>
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Remove subject</span>
+                  <Card key={subject.name} className="p-4 transition-all hover:shadow-md">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
+                      <div className="sm:col-span-1">
+                        <p className="font-bold text-lg truncate">{subject.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Total Classes: <span className="font-bold text-primary">{totalClasses}</span>
+                        </p>
+                      </div>
+                      <div className="sm:col-span-2 flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                          <Progress value={percentage} className="w-full h-2" />
+                          <span className={cn(
+                              "font-semibold text-sm w-12 text-right",
+                              percentage >= 75 ? "text-green-600" : "text-orange-500"
+                          )}>
+                              {percentage}%
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">Attended:</span>
+                                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'attended', 'decrement')}>
+                                    <Minus className="h-4 w-4" />
+                                </Button>
+                                <span className="font-bold w-5 text-center">{subject.attended}</span>
+                                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'attended', 'increment')}>
+                                    <Plus className="h-4 w-4" />
                                 </Button>
                             </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">Missed:</span>
+                                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'missed', 'decrement')}>
+                                    <Minus className="h-4 w-4" />
+                                </Button>
+                                <span className="font-bold w-5 text-center">{subject.missed}</span>
+                                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleCountChange(subject.name, 'missed', 'increment')}>
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            
+                            <Button size="icon" variant="ghost" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={() => handleRemoveSubject(subject.name)}>
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Remove subject</span>
+                            </Button>
                         </div>
-                    </Card>
+                      </div>
+                    </div>
+                  </Card>
                 )
             })}
           </div>
