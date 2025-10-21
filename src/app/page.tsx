@@ -1,7 +1,12 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
-import { HeroGraphic } from '@/components/hero-graphic';
+import dynamic from 'next/dynamic';
+
+const HeroGraphic = dynamic(
+  () => import('@/components/hero-graphic').then((mod) => mod.HeroGraphic),
+  { ssr: false }
+);
 
 export default function Home() {
   return (
