@@ -5,6 +5,7 @@ import {
   LogOut,
   BookOpen,
   Home,
+  CalendarCheck,
 } from 'lucide-react';
 import { useMockAuth } from '@/hooks/use-mock-auth';
 import {
@@ -21,9 +22,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/logo';
 import { UserStats } from '@/components/dashboard/user-stats';
+import { usePathname } from 'next/navigation';
 
 export function AppSidebar() {
   const { user, loading, logout } = useMockAuth();
+  const pathname = usePathname();
 
   if (loading) {
     return (
@@ -31,6 +34,7 @@ export function AppSidebar() {
             <Skeleton className="h-8 w-32 mb-8" />
             <Skeleton className="h-10 w-full mb-4" />
             <div className="space-y-2 flex-grow">
+                <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
             </div>
@@ -51,9 +55,15 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/dashboard" isActive>
+            <SidebarMenuButton href="/dashboard" isActive={pathname === '/dashboard'}>
               <Home />
               Chat
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton href="/dashboard/attendance" isActive={pathname === '/dashboard/attendance'}>
+              <CalendarCheck />
+              Attendance
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
