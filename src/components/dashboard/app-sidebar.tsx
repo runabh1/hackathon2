@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   LogOut,
   BookOpen,
@@ -55,15 +56,19 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/dashboard" isActive={pathname === '/dashboard'}>
-              <Home />
-              Chat
+            <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
+              <Link href="/dashboard">
+                <Home />
+                Chat
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
-            <SidebarMenuButton href="/dashboard/attendance" isActive={pathname === '/dashboard/attendance'}>
-              <CalendarCheck />
-              Attendance
+            <SidebarMenuButton asChild isActive={pathname === '/dashboard/attendance'}>
+              <Link href="/dashboard/attendance">
+                <CalendarCheck />
+                Attendance
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
