@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookUp, FileText, Upload } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import pdfParse from "pdf-parse/lib/pdf-parse";
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 
 export default function ResourcesPage() {
   const [documentText, setDocumentText] = useState('');
