@@ -1,32 +1,38 @@
 // src/lib/firebase/tokenService.ts
 import { initializeApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 
 // This file contains SERVER-SIDE logic only. It uses the Firebase Admin SDK.
 
-// Parse the service account key from the environment variable
-let serviceAccount: ServiceAccount;
-try {
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+let db: Firestore;
+
+function getAdminDb() {
+  if (db) {
+    return db;
   }
-  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-} catch (e) {
-  console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e);
-  throw new Error("Firebase Admin SDK initialization failed.");
+
+  if (!getApps().length) {
+    let serviceAccount: ServiceAccount;
+    try {
+      if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+      }
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    } catch (e) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e);
+      throw new Error("Firebase Admin SDK initialization failed.");
+    }
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+  }
+  
+  db = getFirestore();
+  return db;
 }
 
-
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
-}
-
-const db = getFirestore();
 
 /**
  * Saves the user's OAuth tokens to Firestore using the Admin SDK.
@@ -39,10 +45,11 @@ export async function saveUserTokens(userId: string, tokens: {
     expiry_date?: number | null;
     scope?: string | null;
 }) {
+  const firestore = getAdminDb();
   if (!userId) throw new Error("User ID is required to save tokens.");
   if (!tokens.refresh_token) throw new Error("A refresh token is required.");
 
-  const integrationRef = db.collection('users').doc(userId).collection('integrations').doc('gmail');
+  const integrationRef = firestore.collection('users').doc(userId).collection('integrations').doc('gmail');
   
   await integrationRef.set({
     refreshToken: tokens.refresh_token,
@@ -58,9 +65,10 @@ export async function saveUserTokens(userId: string, tokens: {
  * @returns A valid access token.
  */
 export async function getValidAccessToken(userId: string): Promise<string> {
+  const firestore = getAdminDb();
   if (!userId) throw new Error("User ID is required to get an access token.");
 
-  const integrationRef = db.collection('users').doc(userId).collection('integrations').doc('gmail');
+  const integrationRef = firestore.collection('users').doc(userId).collection('integrations').doc('gmail');
   const doc = await integrationRef.get();
 
   if (!doc.exists) {
