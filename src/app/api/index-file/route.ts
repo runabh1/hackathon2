@@ -1,5 +1,6 @@
 
 // src/app/api/index-file/route.ts
+import 'dotenv/config'; // Load environment variables
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase/tokenService';
 import { indexMaterial } from '@/ai/flows/index-material-flow';
