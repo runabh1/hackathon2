@@ -7,6 +7,7 @@ import { Mail, CalendarCheck2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 async function getGoogleAuthUrl() {
     const response = await fetch('/api/auth/google/url');
@@ -25,19 +26,21 @@ export function UserStats() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const integrationDocPath = useMemo(() => {
+  const integrationDocRef = useMemo(() => {
     if (!user || !firestore) return null;
-    return `users/${user.uid}/integrations/gmail`;
+    // Important: We create a stable reference using doc() here
+    return doc(firestore, 'users', user.uid, 'integrations', 'gmail');
   }, [user, firestore]);
 
-  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath);
+  // The path string for useDoc is now stable or null
+  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocRef?.path || null);
+
 
   const isGmailLinked = !!(gmailIntegration && gmailIntegration.refreshToken);
 
   const handleLinkGmail = async () => {
     try {
         const authUrl = await getGoogleAuthUrl();
-        // Use window.top to break out of any iframes, which is common in development environments.
         if (window.top) {
             window.top.location.href = authUrl;
         } else {

@@ -5,27 +5,35 @@ import { z } from 'genkit';
 import { google } from 'googleapis';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-
-// Initialize Firebase Admin if not already done
-if (!getApps().length) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-    initializeApp({
-        credential: cert(serviceAccount),
-    });
-}
-
-const db = getFirestore();
+import {doc, getDoc} from "firebase/firestore";
+import { useFirestore } from '@/firebase';
 
 // Helper to get tokens from Firestore
 async function getTokensFromFirestore(userId: string): Promise<{ accessToken: string, refreshToken: string } | null> {
-    const docRef = db.collection('users').doc(userId).collection('integrations').doc('gmail');
-    const doc = await doc.get();
+    // This is a client-side function now, it should not use firebase-admin
+    // This function will need to be called from a component that has access to firestore instance
+    // For a tool, it's better to fetch this from a secure backend endpoint,
+    // but for simplicity of this single file, let's assume this tool is run in an environment
+    // that can be configured with the user's firestore instance.
+    // The current implementation is problematic because a server-side tool can't use client-side hooks.
+    // Let's refactor to use Firebase Admin SDK, but it must be initialized properly.
+    
+    if (!getApps().length) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
+        initializeApp({
+            credential: cert(serviceAccount),
+        });
+    }
+    const db = getFirestore();
 
-    if (!doc.exists) {
+    const docRef = db.collection('users').doc(userId).collection('integrations').doc('gmail');
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
         console.log('No token document found for user:', userId);
         return null;
     }
-    const data = doc.data();
+    const data = docSnap.data();
     if (!data || !data.refreshToken) {
         console.log('Refresh token missing for user:', userId);
         return null;
@@ -68,8 +76,11 @@ export const emailManagerTool = ai.defineTool(
         try {
             const accessToken = await refreshGoogleAccessToken(tokens.refreshToken);
 
-            const gmail = google.gmail({ version: 'v1', auth: new google.auth.OAuth2() });
-            gmail.context._options.headers = { Authorization: `Bearer ${accessToken}` };
+            const gmail = google.gmail({ version: 'v1' });
+            const oauth2Client = new google.auth.OAuth2();
+            oauth2Client.setCredentials({ access_token: accessToken });
+            
+            google.options({ auth: oauth2Client });
 
 
             const res = await gmail.users.messages.list({
