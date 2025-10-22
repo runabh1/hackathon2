@@ -7,7 +7,7 @@
  * - LearningRecommendationOutput - The return type for the recommendLearningResources function.
  */
 
-import {ai, LLAMA_2_7B_MODEL_ID} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const LearningRecommendationInputSchema = z.object({
@@ -47,7 +47,7 @@ const learningRecommendationFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await ai.generate({
-        model: LLAMA_2_7B_MODEL_ID,
+        model: 'meta-llama/Llama-2-7b-chat-hf',
         prompt: await prompt.render(input),
     });
     return output!;

@@ -6,8 +6,8 @@ import { googleAI } from '@genkit-ai/google-genai';
 import openAI from '@genkit-ai/compat-oai';
 
 // Configuration for an OpenAI-compatible Llama2 model endpoint
-const LLAMA_API_BASE_URL = 'https://api.example.com/v1'; // Replace with your Llama 2 provider's URL
-export const LLAMA_2_7B_MODEL_ID = 'llama-2-7b-chat'; // Replace with the specific model ID from your provider
+const LLAMA_API_BASE_URL = 'https://api-inference.huggingface.co/v1'; // Using Hugging Face endpoint
+const LLAMA_2_7B_MODEL_ID = 'meta-llama/Llama-2-7b-chat-hf'; // Standard Hugging Face model ID
 
 const llamaPlugin = openAI({
     apiKey: process.env.LLAMA_API_KEY, // Assumes API key is in this env var

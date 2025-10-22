@@ -8,7 +8,7 @@
  * - StudyGuideRAGOutput - The return type for the function.
  */
 
-import { ai, LLAMA_2_7B_MODEL_ID } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 // --- Schemas ---
@@ -68,7 +68,7 @@ const studyGuideRAGFlow = ai.defineFlow(
 
     // Call the LLM with the augmented prompt
     const llmResponse = await ai.generate({
-        model: LLAMA_2_7B_MODEL_ID,
+        model: 'meta-llama/Llama-2-7b-chat-hf',
         prompt: await ragPrompt.render(input),
         config: { temperature: 0.1 },
     });
