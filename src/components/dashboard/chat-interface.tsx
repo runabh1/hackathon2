@@ -36,10 +36,12 @@ const initialMessage: Message = {
   content: "Hello! I'm MentorAI. How can I help you with your studies, schedule, or emails today?",
 };
 
-// A simple regex to detect if a question is about a specific course
-const courseQueryRegex = /in|for|about\s+([A-Z]{2,5}-?\d{2,4})\b/i;
-const resourceQueryRegex = /(?:recommend|find|get|suggest)\s(?:resources|links|videos|articles)\s(?:for|on|about)\s(.+)/i;
-const videoQueryRegex = /(?:best|find|get|suggest)\s(?:video|tutorial)\s(?:for|on|about)\s(.+)/i;
+// More robust regex for various query types
+const courseQueryRegex = /in|for|about|on\s+([A-Z]{2,5}-?\d{2,4})\b/i;
+const resourceQueryRegex = /(?:recommend|find|get|suggest)\s.*(resources|links|videos|articles|tutorials)\s.*(?:for|on|about)\s(.+)/i;
+const careerQueryRegex = /career|insights on (.+)/i;
+const emailQueryRegex = /summarize|read|check\smy\s(email|emails)/i;
+const attendanceQueryRegex = /attendance|present|absent/i;
 
 
 export function ChatInterface() {
@@ -73,9 +75,12 @@ export function ChatInterface() {
     try {
       let assistantMessage: Message;
       const lowercasedInput = currentInput.toLowerCase();
+      
       const courseMatch = currentInput.match(courseQueryRegex);
       const resourceMatch = currentInput.match(resourceQueryRegex);
-      const videoMatch = currentInput.match(videoQueryRegex);
+      const careerMatch = lowercasedInput.match(careerQueryRegex);
+      const emailMatch = lowercasedInput.match(emailQueryRegex);
+      const attendanceMatch = lowercasedInput.match(attendanceQueryRegex);
 
       if (courseMatch && courseMatch[1]) {
         const courseId = courseMatch[1].toUpperCase();
@@ -93,30 +98,22 @@ export function ChatInterface() {
           content: result.answer,
           sources: result.sources,
         };
-
-      } else if (lowercasedInput.includes('summarize') || lowercasedInput.includes('email')) {
+      } else if (emailMatch) {
         const response = await summarizeUnreadEmails({ userId: user.uid });
         assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.summary };
-      } else if (lowercasedInput.includes('attendance') || lowercasedInput.includes('present')) {
+      } else if (attendanceMatch) {
         const response = await updateAttendanceRecord({
           studentId: user.uid,
           date: new Date().toISOString().split('T')[0],
           isPresent: true,
         });
-        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.message + " I've updated your status on the dashboard." };
-      } else if (resourceMatch || videoMatch || lowercasedInput.includes('recommend resources for')) {
-        let topic = '';
-        if (resourceMatch && resourceMatch[1]) {
-            topic = resourceMatch[1];
-        } else if (videoMatch && videoMatch[1]) {
-            topic = videoMatch[1];
-        } else {
-            topic = currentInput.replace(/recommend resources for/i, '').trim();
-        }
+        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.message + " You can view the change on the attendance page." };
+      } else if (resourceMatch && resourceMatch[2]) {
+        const topic = resourceMatch[2].trim();
         const response = await recommendLearningResources({ topic });
         assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.recommendations };
-      } else if (lowercasedInput.includes('career') || lowercasedInput.includes('insights')) {
-        const field = currentInput.replace(/career insights for/i, '').trim();
+      } else if (careerMatch) {
+        const field = careerMatch[1] ? careerMatch[1].trim() : currentInput.replace(/career insights for/i, '').trim();
         const response = await generateCareerInsights({ field });
         assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.insights };
       } else {
@@ -128,12 +125,12 @@ export function ChatInterface() {
       }
       
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error calling AI flow:", error);
       toast({
         variant: 'destructive',
         title: 'An Error Occurred',
-        description: 'I was unable to process your request. Please try again.',
+        description: error.message || 'I was unable to process your request. Please try again.',
       });
       const errorMessage: Message = {
         id: Date.now() + 1,
