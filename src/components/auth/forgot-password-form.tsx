@@ -8,37 +8,54 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
-import { useMockAuth } from '@/hooks/use-mock-auth';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
-  password: z.string().min(1, { message: 'Password is required.' }),
 });
 
-export function LoginForm() {
-  const { login } = useMockAuth();
+export function ForgotPasswordForm() {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isSubmitted, setIsSubmitted] = React.useState(false);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: '',
-      password: '',
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // Simulate network delay
+    // Simulate network delay for the password reset request
     setTimeout(() => {
-      login(values.email);
-    }, 1000);
+      setIsLoading(false);
+      setIsSubmitted(true);
+      toast({
+        title: 'Check Your Email',
+        description: `If an account exists for ${values.email}, you will receive password reset instructions.`,
+      });
+    }, 1500);
+  }
+
+  if (isSubmitted) {
+    return (
+      <div className="text-center space-y-4">
+        <p className="text-muted-foreground">
+          A simulated password reset link has been sent. In a real app, you would check your email.
+        </p>
+        <Button variant="outline" asChild className="w-full">
+          <Link href="/login">Return to Log In</Link>
+        </Button>
+      </div>
+    );
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="email"
@@ -52,36 +69,15 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <div className="flex justify-between items-center">
-                <FormLabel>Password</FormLabel>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Log In
+          Send Reset Link
         </Button>
       </form>
       <div className="mt-4 text-center text-sm">
-        Don&apos;t have an account?{' '}
-        <Link href="/signup" className="underline hover:text-primary">
-          Sign up
+        Remembered your password?{' '}
+        <Link href="/login" className="underline hover:text-primary">
+          Log in
         </Link>
       </div>
     </Form>
