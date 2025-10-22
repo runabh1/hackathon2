@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Mail, CalendarCheck2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser, useDoc } from '@/firebase';
 
 async function getGoogleAuthUrl() {
     const response = await fetch('/api/auth/google/url');
@@ -24,14 +23,13 @@ export function UserStats() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useUser();
-  const firestore = useFirestore();
 
-  const integrationDocRef = useMemo(() => {
-    if (!user || !firestore) return null;
-    return doc(firestore, 'users', user.uid, 'integrations', 'gmail');
-  }, [user, firestore]);
+  const integrationDocPath = useMemo(() => {
+    if (!user) return null;
+    return `users/${user.uid}/integrations/gmail`;
+  }, [user]);
 
-  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocRef);
+  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath);
 
 
   const isGmailLinked = !!(gmailIntegration && gmailIntegration.refreshToken);
@@ -80,7 +78,7 @@ export function UserStats() {
     }
   };
 
-  if (!user || !firestore) {
+  if (!user) {
     return (
         <Card className="border-none shadow-none bg-transparent">
             <CardHeader className="p-2">

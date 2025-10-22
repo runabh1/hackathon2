@@ -1,23 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { doc, onSnapshot, type DocumentData } from 'firebase/firestore';
+import { doc, onSnapshot, type DocumentReference, type DocumentData } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 
-export const useDoc = <T extends DocumentData>(path: string | null) => {
+export const useDoc = <T extends DocumentData>(pathOrRef: string | DocumentReference | null) => {
   const firestore = useFirestore();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Do not proceed if firestore is not available or if the path is invalid/empty.
-    if (!firestore || !path) {
+    if (!firestore || !pathOrRef) {
       setLoading(false);
       setData(null);
       return;
     }
 
-    const docRef = doc(firestore, path);
+    const docRef = typeof pathOrRef === 'string' ? doc(firestore, pathOrRef) : pathOrRef;
 
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -32,7 +31,7 @@ export const useDoc = <T extends DocumentData>(path: string | null) => {
     });
 
     return () => unsubscribe();
-  }, [firestore, path]);
+  }, [firestore, pathOrRef]);
 
   return { data, loading };
 };

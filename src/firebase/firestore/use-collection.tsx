@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { onSnapshot, type Query, type DocumentData } from 'firebase/firestore';
 
-export const useCollection = <T extends DocumentData>(query: Query<DocumentData> | null) => {
+export const useCollection = <T extends DocumentData>(query: Query | null) => {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,8 +24,11 @@ export const useCollection = <T extends DocumentData>(query: Query<DocumentData>
       setLoading(false);
     });
 
+    // We use a stable query key if the query object has one, otherwise stringify.
+    const queryKey = (query as any)._query?.canonicalId || (query ? query.toString() : 'null');
+
     return () => unsubscribe();
-  }, [query ? query.toString() : 'null']);
+  }, [query]); // Re-run effect if the query object itself changes.
 
   return { data, loading };
 };
