@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const auth = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,16 +26,15 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // The useUser hook will handle redirection on successful login.
-      // We don't need to set loading to false here because the page will redirect.
+      // Explicitly redirect to dashboard on successful login
+      router.push('/dashboard');
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
         description: error.message || 'An unexpected error occurred.',
       });
-    } finally {
-        setLoading(false);
+      setLoading(false); // Only set loading to false on error
     }
   };
 

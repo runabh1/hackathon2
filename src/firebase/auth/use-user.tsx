@@ -9,12 +9,11 @@ export const useUser = () => {
   const auth = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!auth) {
-        // Auth is not ready yet, do nothing.
+        // Auth is not ready yet, do nothing, but keep loading.
+        setLoading(true);
         return;
     };
 
@@ -25,20 +24,6 @@ export const useUser = () => {
 
     return () => unsubscribe();
   }, [auth]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/';
-    
-    if (!user && !isAuthPage) {
-      router.push('/login');
-    }
-    
-    if (user && isAuthPage) {
-      router.push('/dashboard');
-    }
-  }, [user, loading, pathname, router]);
 
   return { user, loading };
 };
