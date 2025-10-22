@@ -28,12 +28,10 @@ export function UserStats() {
 
   const integrationDocRef = useMemo(() => {
     if (!user || !firestore) return null;
-    // Important: We create a stable reference using doc() here
     return doc(firestore, 'users', user.uid, 'integrations', 'gmail');
   }, [user, firestore]);
 
-  // The path string for useDoc is now stable or null
-  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocRef?.path || null);
+  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocRef);
 
 
   const isGmailLinked = !!(gmailIntegration && gmailIntegration.refreshToken);
@@ -41,11 +39,8 @@ export function UserStats() {
   const handleLinkGmail = async () => {
     try {
         const authUrl = await getGoogleAuthUrl();
-        if (window.top) {
-            window.top.location.href = authUrl;
-        } else {
-            window.location.href = authUrl;
-        }
+        // Open in a new tab to avoid iframe security issues
+        window.open(authUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
         console.error('Failed to get Google auth URL', error);
         toast({
@@ -84,6 +79,24 @@ export function UserStats() {
       setIsLoading(false);
     }
   };
+
+  if (!user || !firestore) {
+    return (
+        <Card className="border-none shadow-none bg-transparent">
+            <CardHeader className="p-2">
+                <CardTitle className="text-base font-semibold">Dashboard</CardTitle>
+            </CardHeader>
+            <CardContent className="p-2 space-y-4">
+                <div className="flex items-center justify-between p-2 rounded-md bg-sidebar-accent h-10">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-md bg-sidebar-accent h-10">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <Card className="border-none shadow-none bg-transparent">
