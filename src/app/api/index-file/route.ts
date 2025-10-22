@@ -1,14 +1,14 @@
 
 // src/app/api/index-file/route.ts
-import 'dotenv/config'; // Ensure environment variables are loaded
+import 'dotenv/config'; // Ensure environment variables are loaded FIRST
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { indexMaterial } from '@/ai/flows/index-material-flow';
 import pdf from 'pdf-parse';
 
-// --- Firebase Admin Initialization (Self-contained) ---
-// This ensures the Admin SDK is initialized reliably within the API route's environment.
+// --- Firebase Admin Initialization (Robust Singleton Pattern) ---
+// This ensures the Admin SDK is initialized only once per serverless function instance.
 
 let db: Firestore;
 
@@ -16,6 +16,7 @@ function initializeAdminApp() {
     const adminAppName = 'file-indexing-admin-app';
     const existingApp = getApps().find(app => app.name === adminAppName);
     
+    // If the app is already initialized, return its Firestore instance.
     if (existingApp) {
         if (!db) {
             db = getFirestore(existingApp);
@@ -23,12 +24,14 @@ function initializeAdminApp() {
         return;
     }
 
+    // This block will only run ONCE per cold start of the serverless function.
     let serviceAccount: ServiceAccount;
     try {
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set or empty.');
+        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (!serviceAccountKey) {
+            throw new Error('CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set or empty.');
         }
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        serviceAccount = JSON.parse(serviceAccountKey);
     } catch (e: any) {
         console.error("FATAL: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e.message);
         throw new Error("Firebase Admin SDK initialization failed due to invalid service account key.");
@@ -45,11 +48,10 @@ function initializeAdminApp() {
     }
 }
 
-// Ensure the admin app is initialized when the module loads
+// Ensure the admin app is initialized when this module is loaded.
 initializeAdminApp();
 
 // --- API Configuration ---
-
 // Increase the default body size limit to handle larger file uploads
 export const config = {
   api: {
@@ -67,10 +69,10 @@ export async function POST(req: NextRequest) {
     const { fileContent, fileName, courseId, userId } = body;
 
     if (!fileContent || !fileName || !courseId || !userId) {
-      return NextResponse.json({ error: 'Missing required fields: fileContent, fileName, courseId, userId are required.' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required fields: fileContent, fileName, courseId, and userId are required.' }, { status: 400 });
     }
 
-    // 1. Extract Text from file
+    // 1. Extract Text from file buffer
     const buffer = Buffer.from(fileContent, 'base64');
     let textContent = '';
     
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!vectors || vectors.length === 0) {
-        console.warn(`No vectors were generated for course ${courseId}. This might mean the document was too short.`);
+        console.warn(`No vectors were generated for course ${courseId}. This might mean the document was too short or the AI flow failed.`);
         return NextResponse.json({
             success: true,
             message: `File processed, but no content was indexed. The document might be empty or too short.`
@@ -117,8 +119,8 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('ERROR in /api/index-file:', error);
-    // Return a structured JSON error instead of crashing
-    return NextResponse.json({ error: error.message || 'An internal server error occurred.' }, { status: 500 });
+    // This is the most important part: catch ANY error and return a JSON response.
+    console.error('CRITICAL ERROR in /api/index-file:', error);
+    return NextResponse.json({ error: error.message || 'An unexpected internal server error occurred.' }, { status: 500 });
   }
 }
