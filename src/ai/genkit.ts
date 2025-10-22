@@ -7,9 +7,11 @@ import openAI from '@genkit-ai/compat-oai';
 const LLAMA_API_BASE_URL = 'https://api-inference.huggingface.co/v1'; // Using Hugging Face endpoint
 const LLAMA_2_7B_MODEL_ID = 'meta-llama/Llama-2-7b-chat-hf'; // Standard Hugging Face model ID
 
-const llamaPlugin = openAI({
+export const llamaPlugin = openAI({
+    name: 'huggingface',
     apiKey: process.env.LLAMA_API_KEY, // Assumes API key is in this env var
     baseUrl: LLAMA_API_BASE_URL,
+    models: [{ name: LLAMA_2_7B_MODEL_ID }],
 });
 
 export const ai = genkit({
