@@ -10,15 +10,10 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { emailManagerTool } from './email-manager';
 
 const SummarizeUnreadEmailsInputSchema = z.object({
-  emailSummaries: z.array(
-    z.object({
-      sender: z.string().describe('The sender of the email.'),
-      subject: z.string().describe('The subject of the email.'),
-      body: z.string().describe('The body of the email.'),
-    })
-  ).describe('A list of email summaries to be summarized.'),
+  userId: z.string().describe("The user's ID to fetch emails for."),
 });
 export type SummarizeUnreadEmailsInput = z.infer<typeof SummarizeUnreadEmailsInputSchema>;
 
@@ -33,16 +28,14 @@ export async function summarizeUnreadEmails(input: SummarizeUnreadEmailsInput): 
 
 const summarizeUnreadEmailsPrompt = ai.definePrompt({
   name: 'summarizeUnreadEmailsPrompt',
-  input: {schema: SummarizeUnreadEmailsInputSchema},
+  input: {schema: z.object({
+    emailSummary: z.string(),
+  })},
   output: {schema: SummarizeUnreadEmailsOutputSchema},
   prompt: `You are an AI assistant helping a student manage their email inbox.
   Summarize the following unread emails to help the student quickly understand the important information and prioritize their responses:
 
-  {{#each emailSummaries}}
-  Sender: {{{sender}}}
-  Subject: {{{subject}}}
-  Body: {{{body}}}
-  ---\n  {{/each}}
+  {{{emailSummary}}}
 
   Please provide a concise summary of the key information from these emails.`,
 });
@@ -52,9 +45,33 @@ const summarizeUnreadEmailsFlow = ai.defineFlow(
     name: 'summarizeUnreadEmailsFlow',
     inputSchema: SummarizeUnreadEmailsInputSchema,
     outputSchema: SummarizeUnreadEmailsOutputSchema,
+    tools: [emailManagerTool]
   },
-  async input => {
-    const {output} = await summarizeUnreadEmailsPrompt(input);
+  async (input) => {
+    const llmResponse = await ai.generate({
+        prompt: `Summarize the user's unread emails.`,
+        tools: [emailManagerTool],
+        toolConfig: {
+          emailManagerTool: {
+            userId: input.userId
+          }
+        }
+    });
+
+    const toolResponse = llmResponse.toolRequest()?.tool.emailManagerTool;
+
+    if (!toolResponse) {
+      return { summary: "Could not retrieve emails. The user may need to link their Gmail account." };
+    }
+    
+    const summary = toolResponse.output;
+
+    if (!summary || summary.startsWith('Error')) {
+      return { summary: summary || "An unknown error occurred while fetching emails." };
+    }
+    
+    const { output } = await summarizeUnreadEmailsPrompt({ emailSummary: summary });
+
     return output!;
   }
 );

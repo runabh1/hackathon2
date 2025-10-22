@@ -41,7 +41,7 @@ export function ChatInterface() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !user) return;
 
     const userMessage: Message = {
       id: Date.now(),
@@ -53,29 +53,22 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
-      let response: { answer: string } | { summary: string } | { message: string, success: boolean };
       let assistantContent: string;
       const lowercasedInput = input.toLowerCase();
 
       if (lowercasedInput.includes('summarize') && lowercasedInput.includes('email')) {
-        response = await summarizeUnreadEmails({
-          emailSummaries: [
-            { sender: 'prof.davis@university.edu', subject: 'Midterm Grades', body: 'The midterm grades for Intro to AI have been posted...' },
-            { sender: 'library@university.edu', subject: 'Book Due Soon', body: 'Your borrowed book "AI: A Modern Approach" is due for return...' },
-            { sender: 'study.group@university.edu', subject: 'Meeting time', body: 'Hey, are we still on for 6 PM at the usual spot?' },
-          ]
-        });
-        assistantContent = (response as { summary: string }).summary;
+        const response = await summarizeUnreadEmails({ userId: user.uid });
+        assistantContent = response.summary;
       } else if (lowercasedInput.includes('attendance') || lowercasedInput.includes('present')) {
-        response = await updateAttendanceRecord({
-          studentId: user?.uid || 'unknown',
+        const response = await updateAttendanceRecord({
+          studentId: user.uid,
           date: new Date().toISOString().split('T')[0],
           isPresent: true,
         });
-        assistantContent = (response as { message: string }).message + " I've updated your status on the dashboard.";
+        assistantContent = response.message + " I've updated your status on the dashboard.";
       } else {
-        response = await generateContextAwareStudyGuide({ query: input });
-        assistantContent = (response as { answer: string }).answer;
+        const response = await generateContextAwareStudyGuide({ query: input });
+        assistantContent = response.answer;
       }
       
       const assistantMessage: Message = {

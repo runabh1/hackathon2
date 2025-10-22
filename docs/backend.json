@@ -23,7 +23,27 @@
         }
       },
       "required": ["name", "attended", "missed", "userId"]
-    }
+    },
+    "Integration": {
+        "title": "Integration",
+        "description": "Stores credentials for a third-party integration, like Google.",
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "The OAuth2 access token."
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "The OAuth2 refresh token."
+          },
+          "expiresAt": {
+            "type": "number",
+            "description": "The timestamp when the access token expires."
+          }
+        },
+        "required": ["accessToken", "refreshToken", "expiresAt"]
+      }
   },
   "auth": {
     "providers": ["password"]
@@ -34,6 +54,12 @@
         "$ref": "#/entities/Subject"
       },
       "description": "Stores the attendance tracking subjects for all users."
+    },
+    "/users/{userId}/integrations/{integrationId}": {
+        "schema": {
+          "$ref": "#/entities/Integration"
+        },
+        "description": "Stores third-party integration credentials for a user."
     }
   }
 }
