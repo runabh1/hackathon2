@@ -1,55 +1,9 @@
 
 // src/app/api/index-file/route.ts
-import 'dotenv/config'; // Ensure environment variables are loaded FIRST
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAdminDb } from '@/lib/firebase/admin'; // Use the new admin singleton
 import { indexMaterial } from '@/ai/flows/index-material-flow';
 import pdf from 'pdf-parse';
-
-// --- Firebase Admin Initialization (Robust Singleton Pattern) ---
-// This ensures the Admin SDK is initialized only once per serverless function instance.
-
-let db: Firestore;
-
-function initializeAdminApp() {
-    const adminAppName = 'file-indexing-admin-app';
-    const existingApp = getApps().find(app => app.name === adminAppName);
-    
-    // If the app is already initialized, return its Firestore instance.
-    if (existingApp) {
-        if (!db) {
-            db = getFirestore(existingApp);
-        }
-        return;
-    }
-
-    // This block will only run ONCE per cold start of the serverless function.
-    let serviceAccount: ServiceAccount;
-    try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountKey) {
-            throw new Error('CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set or empty.');
-        }
-        serviceAccount = JSON.parse(serviceAccountKey);
-    } catch (e: any) {
-        console.error("FATAL: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e.message);
-        throw new Error("Firebase Admin SDK initialization failed due to invalid service account key.");
-    }
-
-    try {
-        const app = initializeApp({
-            credential: cert(serviceAccount),
-        }, adminAppName);
-        db = getFirestore(app);
-    } catch (e: any) {
-        console.error("FATAL: Failed to initialize Firebase Admin App.", e.message);
-        throw new Error("Firebase Admin SDK could not be initialized.");
-    }
-}
-
-// Ensure the admin app is initialized when this module is loaded.
-initializeAdminApp();
 
 // --- API Configuration ---
 // Increase the default body size limit to handle larger file uploads
@@ -65,6 +19,7 @@ export const config = {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = getAdminDb(); // Get the guaranteed singleton instance of Firestore
     const body = await req.json();
     const { fileContent, fileName, courseId, userId } = body;
 
@@ -77,10 +32,10 @@ export async function POST(req: NextRequest) {
     let textContent = '';
     
     if (fileName.toLowerCase().endsWith('.pdf')) {
-      const data = await pdf(buffer);
+      const data = await pdf(buffer); // Correctly await the promise
       textContent = data.text;
     } else {
-      textContent = buffer.toString('utf-8');
+      textContent = buffer.toString('utf-8'); // Correctly handle plain text
     }
 
     if (!textContent.trim()) {
@@ -88,14 +43,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Call Genkit flow to chunk and embed the text
-    const { vectors } = await indexMaterial({
+    const { vectors }await indexMaterial({
       text: textContent,
       courseId,
       userId,
     });
 
     if (!vectors || vectors.length === 0) {
-        console.warn(`No vectors were generated for course ${courseId}. This might mean the document was too short or the AI flow failed.`);
+        console.warn(`No vectors were generated for course ${courseId}. The document might be empty or the AI flow failed to produce output.`);
+        // Still a success, but let the user know nothing was indexed.
         return NextResponse.json({
             success: true,
             message: `File processed, but no content was indexed. The document might be empty or too short.`
@@ -120,7 +76,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     // This is the most important part: catch ANY error and return a JSON response.
-    console.error('CRITICAL ERROR in /api/index-file:', error);
+    console.error('CRITICAL ERROR in /api/index-file:', error.stack || error.message);
     return NextResponse.json({ error: error.message || 'An unexpected internal server error occurred.' }, { status: 500 });
   }
 }

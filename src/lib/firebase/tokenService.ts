@@ -1,49 +1,11 @@
 
 // src/lib/firebase/tokenService.ts
-import { initializeApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAdminDb } from './admin'; // Use the new singleton admin
 import { google } from 'googleapis';
-import { OAuth2Client } from 'google-auth-library';
+import type { OAuth2Client } from 'google-auth-library';
+import type { Firestore } from 'firebase-admin/firestore';
 
-// This file contains SERVER-SIDE logic only. It uses the Firebase Admin SDK.
-
-let db: Firestore;
-
-function initializeAdminApp() {
-    const adminAppName = 'admin-app';
-    // Ensure we don't initialize the app more than once
-    if (getApps().some(app => app.name === adminAppName)) {
-        if (!db) {
-            db = getFirestore(getApps().find(app => app.name === adminAppName)!);
-        }
-        return;
-    }
-
-    let serviceAccount: ServiceAccount;
-    try {
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
-        }
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    } catch (e) {
-        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e);
-        throw new Error("Firebase Admin SDK initialization failed.");
-    }
-
-    initializeApp({
-        credential: cert(serviceAccount),
-    }, adminAppName); // Give the admin app a name to avoid conflicts
-    
-    db = getFirestore(getApps().find(app => app.name === adminAppName));
-}
-
-export function getAdminDb(): Firestore {
-  if (!db) {
-    initializeAdminApp();
-  }
-  return db;
-}
-
+// This file contains SERVER-SIDE logic only.
 
 /**
  * Saves the user's OAuth tokens to Firestore using the Admin SDK.
@@ -56,7 +18,7 @@ export async function saveUserTokens(userId: string, tokens: {
     expiry_date?: number | null;
     scope?: string | null;
 }) {
-  const firestore = getAdminDb();
+  const firestore: Firestore = getAdminDb(); // Get the singleton instance
   if (!userId) throw new Error("User ID is required to save tokens.");
   if (!tokens.refresh_token) throw new Error("A refresh token is required.");
 
@@ -76,7 +38,7 @@ export async function saveUserTokens(userId: string, tokens: {
  * @returns A valid access token.
  */
 export async function getValidAccessToken(userId: string): Promise<string> {
-  const firestore = getAdminDb();
+  const firestore: Firestore = getAdminDb(); // Get the singleton instance
   if (!userId) throw new Error("User ID is required to get an access token.");
 
   const integrationRef = firestore.collection('users').doc(userId).collection('integrations').doc('gmail');
