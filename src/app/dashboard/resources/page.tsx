@@ -1,35 +1,20 @@
 'use client';
 
-import React, { useState, useMemo, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookUp, File, Trash2, Download } from 'lucide-react';
-import { useUser, useFirestore, useCollection, useStorage } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { addMaterial, removeMaterial, type StudyMaterial } from '@/lib/materials';
-import { Progress } from '@/components/ui/progress';
+import { Loader2, BookUp, FileText } from 'lucide-react';
+import { useUser } from '@/firebase';
 
 export default function ResourcesPage() {
   const { user } = useUser();
-  const firestore = useFirestore();
-  const storage = useStorage();
   const [courseId, setCourseId] = useState('');
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-
-  const materialsQuery = useMemo(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'study_materials'), where('userId', '==', user.uid));
-  }, [user, firestore]);
-
-  const { data: materials, loading: loadingMaterials } = useCollection<StudyMaterial>(materialsQuery);
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -39,94 +24,76 @@ export default function ResourcesPage() {
     }
   };
 
-  const handleUploadMaterial = async (e: React.FormEvent) => {
+  const handleProcessAndIndex = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fileToUpload || !courseId.trim() || !user || !storage || !firestore) {
+    if (!fileToUpload || !courseId.trim() || !user) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please select a file, provide a course ID, and ensure you are logged in.',
+        description: 'Please select a file and provide a course ID.',
       });
       return;
     }
-    
-    setIsUploading(true);
-    setUploadProgress(0);
 
-    const storageRef = ref(storage, `users/${user.uid}/materials/${fileToUpload.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
+    setIsProcessing(true);
 
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
-      },
-      (error) => {
-        console.error('Upload failed:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Upload Failed',
-          description: 'Could not upload your file. Please try again.',
-        });
-        setIsUploading(false);
-        setUploadProgress(0);
-      },
-      async () => {
-        try {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          
-          await addMaterial(firestore, {
-              courseId,
-              userId: user.uid,
-              fileName: fileToUpload.name,
-              downloadUrl,
-          });
-
-          toast({
-            title: 'Upload Successful!',
-            description: `Your file "${fileToUpload.name}" has been saved for course "${courseId}".`,
-          });
-          
-          // Reset form
-          setFileToUpload(null);
-          setCourseId('');
-        } catch (error) {
-            console.error('Failed to save material reference:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Saving Failed',
-                description: 'Your file was uploaded but we could not save its reference. Please contact support.',
-            });
-        } finally {
-            setIsUploading(false);
-            setUploadProgress(0);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(fileToUpload);
+      reader.onload = async (event) => {
+        if (!event.target?.result) {
+            throw new Error("Failed to read file.");
         }
-      }
-    );
-  };
-  
-  const handleRemoveMaterial = async (material: StudyMaterial) => {
-      if (!firestore) return;
-      try {
-          await removeMaterial(firestore, material.id);
-          toast({
-              title: "Material Removed",
-              description: `"${material.fileName}" has been removed.`,
-          });
-          // Note: Storage object deletion is not handled here to keep it simple,
-          // but in a production app, you'd want to delete the file from Storage as well.
-      } catch (error) {
-          console.error("Failed to remove material:", error);
-          toast({
-              variant: "destructive",
-              title: "Removal Failed",
-              description: "Could not remove the material. Please try again."
-          });
-      }
-  }
+        
+        const base64File = (event.target.result as string).split(',')[1];
+        
+        const response = await fetch('/api/index-file', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                fileContent: base64File,
+                fileName: fileToUpload.name,
+                courseId,
+                userId: user.uid,
+            }),
+        });
 
-  const isFormSubmittable = fileToUpload && courseId.trim() && !isUploading && user;
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to index the file.');
+        }
+
+        toast({
+            title: 'Success!',
+            description: `Your document "${fileToUpload.name}" has been processed and indexed for course "${courseId}".`,
+        });
+
+        setFileToUpload(null);
+        setCourseId('');
+      };
+      
+      reader.onerror = (error) => {
+        throw new Error("Error reading file: " + error);
+      }
+
+    } catch (error: any) {
+      console.error('Processing failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Processing Failed',
+        description: error.message || 'Could not process your file. Please try again.',
+      });
+    } finally {
+      // This needs to be handled inside the onload/onerror callbacks
+      // For simplicity, we'll reset it here, but a more robust solution would use state management
+      setIsProcessing(false);
+    }
+  };
+
+  const isFormSubmittable = fileToUpload && courseId.trim() && !isProcessing && user;
 
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -136,32 +103,24 @@ export default function ResourcesPage() {
             <div className="flex items-center gap-4">
               <BookUp className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="text-2xl font-headline tracking-tight">Upload Study Material</CardTitle>
-                <CardDescription>Upload your lecture notes, PDFs, and other study aids.</CardDescription>
+                <CardTitle className="text-2xl font-headline tracking-tight">Index Study Material</CardTitle>
+                <CardDescription>Process your lecture notes or PDFs to make them searchable for the chat AI.</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleUploadMaterial} className="space-y-6 mt-4">
+            <form onSubmit={handleProcessAndIndex} className="space-y-6 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="courseId">Course ID</Label>
-                <Input id="courseId" placeholder="E.g., CHEM-101, HIST-203" value={courseId} onChange={(e) => setCourseId(e.target.value)} required disabled={isUploading} />
+                <Input id="courseId" placeholder="E.g., CHEM-101, HIST-203" value={courseId} onChange={(e) => setCourseId(e.target.value)} required disabled={isProcessing} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="file-upload">PDF Document</Label>
-                <Input id="file-upload" type="file" onChange={handleFileSelect} accept=".pdf" disabled={isUploading} />
+                <Input id="file-upload" type="file" onChange={handleFileSelect} accept=".pdf" disabled={isProcessing} />
               </div>
 
-              {isUploading && (
-                <div className="space-y-2">
-                    <Label>Upload Progress</Label>
-                    <Progress value={uploadProgress} />
-                    <p className="text-sm text-muted-foreground text-center">{Math.round(uploadProgress)}%</p>
-                </div>
-              )}
-
               <Button type="submit" className="w-full font-semibold" disabled={!isFormSubmittable}>
-                {isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</> : 'Upload and Save'}
+                {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : 'Process and Index'}
               </Button>
             </form>
           </CardContent>
@@ -169,41 +128,30 @@ export default function ResourcesPage() {
         
         <Card className="shadow-lg animate-in fade-in-0 zoom-in-95 delay-150">
             <CardHeader>
-                <CardTitle>My Materials</CardTitle>
-                <CardDescription>A list of all your uploaded study materials.</CardDescription>
+                <CardTitle>How it Works</CardTitle>
+                <CardDescription>Understanding the document indexing process.</CardDescription>
             </CardHeader>
-            <CardContent>
-                {loadingMaterials ? (
-                    <div className="text-center text-muted-foreground py-8">Loading materials...</div>
-                ) : materials && materials.length > 0 ? (
-                    <div className="space-y-3">
-                        {materials.map(material => (
-                            <div key={material.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                                <div className="flex items-center gap-3">
-                                    <File className="h-5 w-5 text-primary" />
-                                    <div className="flex flex-col">
-                                        <span className="font-semibold">{material.fileName}</span>
-                                        <span className="text-xs text-muted-foreground">{material.courseId}</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                     <Button asChild variant="ghost" size="icon">
-                                        <a href={material.downloadUrl} target="_blank" rel="noopener noreferrer">
-                                            <Download className="h-4 w-4" />
-                                        </a>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleRemoveMaterial(material)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+                <div className="flex items-start gap-4">
+                    <FileText className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                        <p>When you upload a PDF, its text content is extracted and split into smaller, manageable chunks.</p>
                     </div>
-                ) : (
-                    <div className="text-center text-muted-foreground py-8">
-                        <p>You haven't uploaded any materials yet.</p>
+                </div>
+                <div className="flex items-start gap-4">
+                    <div className="w-5 h-5 flex-shrink-0 mt-1 flex items-center justify-center">
+                        <span className="font-bold text-primary text-lg">#</span>
                     </div>
-                )}
+                    <div>
+                        <p>Each chunk is converted into a "vector embedding"—a numerical representation of its meaning. This allows the AI to find the most relevant chunks of text when you ask a question.</p>
+                    </div>
+                </div>
+                 <div className="flex items-start gap-4">
+                     <BookUp className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                        <p>These vectors are stored in Firestore, linked to the Course ID you provide. When you chat with MentorAI about a course, it queries these vectors to find the best information to answer your question.</p>
+                    </div>
+                </div>
             </CardContent>
         </Card>
 

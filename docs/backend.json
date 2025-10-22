@@ -44,29 +44,32 @@
       },
       "required": ["accessToken", "refreshToken", "expiresAt"]
     },
-    "StudyMaterial": {
-        "title": "Study Material",
-        "description": "Represents an uploaded study document.",
+    "Vector": {
+        "title": "Vector",
+        "description": "Represents a text chunk and its vector embedding for RAG.",
         "type": "object",
         "properties": {
-            "fileName": {
+            "text": {
                 "type": "string",
-                "description": "The name of the uploaded file."
+                "description": "The text content of the chunk."
             },
-            "downloadUrl": {
-                "type": "string",
-                "description": "The public URL to download the file from Firebase Storage."
+            "embedding": {
+                "type": "array",
+                "items": {
+                    "type": "number"
+                },
+                "description": "The vector embedding of the text chunk."
             },
             "courseId": {
                 "type": "string",
-                "description": "The ID of the course this material belongs to."
+                "description": "The ID of the course this vector belongs to."
             },
             "userId": {
                 "type": "string",
-                "description": "The ID of the user who uploaded this material."
+                "description": "The ID of the user who owns this vector."
             }
         },
-        "required": ["fileName", "downloadUrl", "courseId", "userId"]
+        "required": ["text", "embedding", "courseId", "userId"]
     }
   },
   "auth": {
@@ -85,11 +88,11 @@
       },
       "description": "Stores third-party integration credentials for a user."
     },
-    "/study_materials/{materialId}": {
+    "/study_material_vectors/{vectorId}": {
         "schema": {
-            "$ref": "#/entities/StudyMaterial"
+            "$ref": "#/entities/Vector"
         },
-        "description": "Stores references to uploaded study materials."
+        "description": "Stores text chunks and their vector embeddings for RAG."
     }
   }
 }
