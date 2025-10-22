@@ -9,9 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookUp, FileText, Upload, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from '@/lib/utils';
+import { useUser } from '@/firebase';
 
 export default function ResourcesPage() {
+  const { user } = useUser();
+
   // State for the text paste form
   const [documentText, setDocumentText] = useState('');
   const [textCourseId, setTextCourseId] = useState('');
@@ -28,11 +30,11 @@ export default function ResourcesPage() {
 
   const handleIndexMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!documentText.trim() || !textCourseId.trim()) {
+    if (!documentText.trim() || !textCourseId.trim() || !user) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please provide the document text and a course ID.',
+        description: 'Please provide the document text, a course ID, and be logged in.',
       });
       return;
     }
@@ -46,6 +48,7 @@ export default function ResourcesPage() {
           documentText,
           courseId: textCourseId,
           sourceUrl: textSourceUrl || 'pasted-text',
+          userId: user.uid,
         }),
       });
 
@@ -78,11 +81,11 @@ export default function ResourcesPage() {
 
   const handleIndexPdf = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pdfFile || !pdfCourseId.trim()) {
+    if (!pdfFile || !pdfCourseId.trim() || !user) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please select a PDF file and provide a course ID.',
+        description: 'Please select a PDF file, provide a course ID, and be logged in.',
       });
       return;
     }
@@ -91,6 +94,7 @@ export default function ResourcesPage() {
     const formData = new FormData();
     formData.append('file', pdfFile);
     formData.append('courseId', pdfCourseId);
+    formData.append('userId', user.uid);
 
     try {
       const response = await fetch('/api/index-pdf', {
@@ -120,8 +124,8 @@ export default function ResourcesPage() {
     }
   };
 
-  const isTextFormSubmittable = documentText.trim() && textCourseId.trim() && !isTextLoading;
-  const isPdfFormSubmittable = pdfFile && pdfCourseId.trim() && !isPdfLoading;
+  const isTextFormSubmittable = documentText.trim() && textCourseId.trim() && !isTextLoading && user;
+  const isPdfFormSubmittable = pdfFile && pdfCourseId.trim() && !isPdfLoading && user;
 
   return (
     <div className="container mx-auto p-4 md:p-6">

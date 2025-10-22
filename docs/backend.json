@@ -18,32 +18,63 @@
           "description": "The number of classes missed."
         },
         "userId": {
-            "type": "string",
-            "description": "The ID of the user who owns this subject."
+          "type": "string",
+          "description": "The ID of the user who owns this subject."
         }
       },
       "required": ["name", "attended", "missed", "userId"]
     },
     "Integration": {
-        "title": "Integration",
-        "description": "Stores credentials for a third-party integration, like Google.",
-        "type": "object",
-        "properties": {
-          "accessToken": {
-            "type": "string",
-            "description": "The OAuth2 access token."
-          },
-          "refreshToken": {
-            "type": "string",
-            "description": "The OAuth2 refresh token."
-          },
-          "expiresAt": {
-            "type": "number",
-            "description": "The timestamp when the access token expires."
-          }
+      "title": "Integration",
+      "description": "Stores credentials for a third-party integration, like Google.",
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string",
+          "description": "The OAuth2 access token."
         },
-        "required": ["accessToken", "refreshToken", "expiresAt"]
-      }
+        "refreshToken": {
+          "type": "string",
+          "description": "The OAuth2 refresh token."
+        },
+        "expiresAt": {
+          "type": "number",
+          "description": "The timestamp when the access token expires."
+        }
+      },
+      "required": ["accessToken", "refreshToken", "expiresAt"]
+    },
+    "StudyMaterialChunk": {
+      "title": "Study Material Chunk",
+      "description": "A chunk of text from a study document, with its vector embedding.",
+      "type": "object",
+      "properties": {
+        "chunk_text": {
+          "type": "string",
+          "description": "The text content of the chunk."
+        },
+        "vector_embedding": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "The vector embedding of the chunk text."
+        },
+        "source_url": {
+          "type": "string",
+          "description": "The URL or filename of the original document."
+        },
+        "course_id": {
+          "type": "string",
+          "description": "The ID of the course this material belongs to."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this material."
+        }
+      },
+      "required": ["chunk_text", "vector_embedding", "source_url", "course_id", "userId"]
+    }
   },
   "auth": {
     "providers": ["password"]
@@ -56,10 +87,16 @@
       "description": "Stores the attendance tracking subjects for all users."
     },
     "/users/{userId}/integrations/{integrationId}": {
-        "schema": {
-          "$ref": "#/entities/Integration"
-        },
-        "description": "Stores third-party integration credentials for a user."
+      "schema": {
+        "$ref": "#/entities/Integration"
+      },
+      "description": "Stores third-party integration credentials for a user."
+    },
+    "/study_material_vectors/{chunkId}": {
+      "schema": {
+        "$ref": "#/entities/StudyMaterialChunk"
+      },
+      "description": "Stores indexed chunks of study materials for RAG."
     }
   }
 }

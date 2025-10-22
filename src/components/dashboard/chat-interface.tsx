@@ -5,20 +5,28 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Loader2, BrainCircuit } from 'lucide-react';
+import { Send, Loader2, BrainCircuit, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
-import { generateContextAwareStudyGuide } from '@/ai/flows/study-guide-flow';
 import { summarizeUnreadEmails } from '@/ai/flows/email-summarization';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
 import { recommendLearningResources } from '@/ai/flows/learning-recommendation-flow';
 import { generateCareerInsights } from '@/ai/flows/career-insights-flow';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '../ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 type Message = {
   id: number;
   role: 'user' | 'assistant';
   content: string;
+  sources?: string[];
 };
 
 const initialMessage: Message = {
@@ -26,6 +34,10 @@ const initialMessage: Message = {
   role: 'assistant',
   content: "Hello! I'm MentorAI. How can I help you with your studies, schedule, or emails today?",
 };
+
+// A simple regex to detect if a question is about a specific course
+const courseQueryRegex = /in|for|about\s+([A-Z]{2,5}-?\d{2,4})\b/i;
+
 
 export function ChatInterface() {
   const { user } = useUser();
@@ -51,41 +63,58 @@ export function ChatInterface() {
       content: input,
     };
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
     try {
-      let assistantContent: string;
-      const lowercasedInput = input.toLowerCase();
+      let assistantMessage: Message;
+      const lowercasedInput = currentInput.toLowerCase();
+      const courseMatch = currentInput.match(courseQueryRegex);
 
-      if (lowercasedInput.includes('summarize') && lowercasedInput.includes('email')) {
+      if (courseMatch && courseMatch[1]) {
+        const courseId = courseMatch[1].toUpperCase();
+        const response = await fetch('/api/study-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: currentInput, courseId, userId: user.uid }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to get study guide from RAG.');
+        
+        assistantMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: result.answer,
+          sources: result.sources,
+        };
+
+      } else if (lowercasedInput.includes('summarize') && lowercasedInput.includes('email')) {
         const response = await summarizeUnreadEmails({ userId: user.uid });
-        assistantContent = response.summary;
+        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.summary };
       } else if (lowercasedInput.includes('attendance') || lowercasedInput.includes('present')) {
         const response = await updateAttendanceRecord({
           studentId: user.uid,
           date: new Date().toISOString().split('T')[0],
           isPresent: true,
         });
-        assistantContent = response.message + " I've updated your status on the dashboard.";
+        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.message + " I've updated your status on the dashboard." };
       } else if (lowercasedInput.includes('recommend resources for')) {
-        const topic = input.replace(/recommend resources for/i, '').trim();
+        const topic = currentInput.replace(/recommend resources for/i, '').trim();
         const response = await recommendLearningResources({ topic });
-        assistantContent = response.recommendations;
+        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.recommendations };
       } else if (lowercasedInput.includes('career insights for')) {
-        const field = input.replace(/career insights for/i, '').trim();
+        const field = currentInput.replace(/career insights for/i, '').trim();
         const response = await generateCareerInsights({ field });
-        assistantContent = response.insights;
+        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.insights };
       } else {
-        const response = await generateContextAwareStudyGuide({ query: input });
-        assistantContent = response.answer;
+         assistantMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: "I can help with questions about your courses (e.g., 'explain mitosis in BIO-101'), summarizing emails, or recommending resources. What would you like to do?",
+        };
       }
       
-      const assistantMessage: Message = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: assistantContent,
-      };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Error calling AI flow:", error);
@@ -110,6 +139,7 @@ export function ChatInterface() {
 
   return (
     <div className="flex flex-col h-full bg-card">
+       <TooltipProvider>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-6">
           {messages.map((message) => (
@@ -127,15 +157,35 @@ export function ChatInterface() {
                   </div>
                 </Avatar>
               )}
-              <div
-                className={cn(
-                  'max-w-md rounded-lg px-4 py-2 text-sm md:text-base whitespace-pre-wrap',
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-br-none'
-                    : 'bg-muted text-muted-foreground rounded-bl-none'
+              <div className="flex flex-col gap-2 items-start">
+                <div
+                    className={cn(
+                    'max-w-md rounded-lg px-4 py-2 text-sm md:text-base whitespace-pre-wrap',
+                    message.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-none'
+                        : 'bg-muted text-muted-foreground rounded-bl-none'
+                    )}
+                >
+                    {message.content}
+                </div>
+                {message.sources && message.sources.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 max-w-md">
+                        <p className="text-xs text-muted-foreground font-semibold">SOURCES:</p>
+                        {message.sources.map((source, index) => (
+                          <Tooltip key={index}>
+                            <TooltipTrigger asChild>
+                               <Badge variant="secondary" className="cursor-pointer flex items-center gap-1">
+                                    <FileText className="h-3 w-3" />
+                                    <span className='truncate max-w-[120px]'>{source}</span>
+                                </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{source}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                    </div>
                 )}
-              >
-                {message.content}
               </div>
               {message.role === 'user' && user && (
                 <Avatar className="w-8 h-8">
@@ -159,12 +209,13 @@ export function ChatInterface() {
           )}
         </div>
       </ScrollArea>
+       </TooltipProvider>
       <div className="border-t p-4 bg-background">
         <form onSubmit={handleSendMessage} className="flex items-center gap-3">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your exams, emails, or attendance..."
+            placeholder="Ask about your course, e.g., 'explain mitosis in BIO-101'"
             className="flex-1"
             disabled={isLoading}
           />

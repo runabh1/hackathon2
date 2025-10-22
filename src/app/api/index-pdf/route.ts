@@ -8,9 +8,10 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const courseId = formData.get('courseId') as string | null;
+    const userId = formData.get('userId') as string | null; // Get userId from form data
 
-    if (!file || !courseId) {
-      return NextResponse.json({ error: 'File and courseId are required.' }, { status: 400 });
+    if (!file || !courseId || !userId) {
+      return NextResponse.json({ error: 'File, courseId, and userId are required.' }, { status: 400 });
     }
 
     // Convert file to buffer to be processed by pdf-parse
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
       documentText,
       courseId,
       sourceUrl: file.name, // Use the PDF's filename as the source
+      userId, // Pass the userId to the flow
     });
 
     if (result.success) {

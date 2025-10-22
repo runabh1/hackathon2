@@ -7,8 +7,8 @@ export async function POST(req: NextRequest) {
     const body: IndexMaterialInput = await req.json();
 
     // Basic validation
-    if (!body.documentText || !body.courseId) {
-      return NextResponse.json({ error: 'documentText and courseId are required.' }, { status: 400 });
+    if (!body.documentText || !body.courseId || !body.userId) {
+      return NextResponse.json({ error: 'documentText, courseId, and userId are required.' }, { status: 400 });
     }
 
     const result = await indexMaterial(body);

@@ -15,12 +15,13 @@ import { getAdminDb } from '@/lib/firebase/tokenService';
 export const StudyGuideRAGInputSchema = z.object({
   query: z.string().describe("The student's question."),
   courseId: z.string().describe('The course context, e.g., "CHEM-101".'),
+  userId: z.string().describe('The ID of the user asking the question.'),
 });
 export type StudyGuideRAGInput = z.infer<typeof StudyGuideRAGInputSchema>;
 
 export const StudyGuideRAGOutputSchema = z.object({
   answer: z.string().describe('The context-aware answer.'),
-  sources: z.array(z.string().url()).describe('A list of source URLs used for the answer.'),
+  sources: z.array(z.string().url().or(z.string())).describe('A list of source URLs used for the answer.'),
 });
 export type StudyGuideRAGOutput = z.infer<typeof StudyGuideRAGOutputSchema>;
 
@@ -57,12 +58,17 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 async function findSimilarChunks(
   firestore: FirebaseFirestore.Firestore,
   query: string,
-  courseId: string
+  courseId: string,
+  userId: string
 ): Promise<{ chunks: string[]; sources: string[] }> {
   const queryVector = createEmbedding(query);
 
   const collectionRef = firestore.collection('study_material_vectors');
-  const snapshot = await collectionRef.where('course_id', '==', courseId).get();
+  // Filter by both courseId AND userId
+  const snapshot = await collectionRef
+    .where('course_id', '==', courseId)
+    .where('userId', '==', userId) 
+    .get();
 
   if (snapshot.empty) {
     return { chunks: [], sources: [] };
@@ -125,13 +131,13 @@ const studyGuideRAGFlow = ai.defineFlow(
   async (input) => {
     const firestore = getAdminDb();
 
-    // 1. Find relevant chunks from our "vector store"
-    const { chunks, sources } = await findSimilarChunks(firestore, input.query, input.courseId);
+    // 1. Find relevant chunks from our "vector store" for the specific user
+    const { chunks, sources } = await findSimilarChunks(firestore, input.query, input.courseId, input.userId);
 
     // If no context is found, return a helpful message.
     if (chunks.length === 0) {
       return {
-        answer: `I could not find any relevant study materials for the course "${input.courseId}" to answer your question. Please make sure materials have been indexed.`,
+        answer: `I could not find any relevant study materials for the course "${input.courseId}" to answer your question. Please make sure materials have been indexed for this user and course.`,
         sources: [],
       };
     }
