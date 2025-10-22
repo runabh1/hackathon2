@@ -18,7 +18,19 @@ export default function ResourcesPage() {
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFileToUpload(e.target.files[0]);
+      const file = e.target.files[0];
+      // Basic file type check
+      if (!file.type.includes('pdf') && !file.type.includes('text')) {
+          toast({
+              variant: 'destructive',
+              title: 'Invalid File Type',
+              description: 'Please upload a PDF or a plain text file.',
+          });
+          setFileToUpload(null);
+          e.target.value = ''; // Reset file input
+          return;
+      }
+      setFileToUpload(file);
     } else {
       setFileToUpload(null);
     }
@@ -37,60 +49,67 @@ export default function ResourcesPage() {
 
     setIsProcessing(true);
 
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(fileToUpload);
-      reader.onload = async (event) => {
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
         if (!event.target?.result) {
-            throw new Error("Failed to read file.");
+          throw new Error('Failed to read file.');
         }
-        
+
         const base64File = (event.target.result as string).split(',')[1];
-        
+
         const response = await fetch('/api/index-file', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                fileContent: base64File,
-                fileName: fileToUpload.name,
-                courseId,
-                userId: user.uid,
-            }),
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileContent: base64File,
+            fileName: fileToUpload.name,
+            courseId,
+            userId: user.uid,
+          }),
         });
 
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || 'Failed to index the file.');
+          throw new Error(result.error || 'Failed to index the file.');
         }
 
         toast({
-            title: 'Success!',
-            description: `Your document "${fileToUpload.name}" has been processed and indexed for course "${courseId}".`,
+          title: 'Success!',
+          description: `Your document "${fileToUpload.name}" has been processed and indexed for course "${courseId}".`,
         });
 
+        // Reset form on success
         setFileToUpload(null);
         setCourseId('');
-      };
-      
-      reader.onerror = (error) => {
-        throw new Error("Error reading file: " + error);
+        
+      } catch (error: any) {
+        console.error('Processing failed:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Processing Failed',
+          description: error.message || 'Could not process your file. Please try again.',
+        });
+      } finally {
+        setIsProcessing(false);
       }
-
-    } catch (error: any) {
-      console.error('Processing failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Processing Failed',
-        description: error.message || 'Could not process your file. Please try again.',
-      });
-    } finally {
-      // This needs to be handled inside the onload/onerror callbacks
-      // For simplicity, we'll reset it here, but a more robust solution would use state management
-      setIsProcessing(false);
+    };
+    
+    reader.onerror = (error) => {
+        console.error('Error reading file:', error);
+        toast({
+            variant: 'destructive',
+            title: 'File Read Error',
+            description: 'Could not read the selected file. Please try again.',
+        });
+        setIsProcessing(false);
     }
+
+    reader.readAsDataURL(fileToUpload);
   };
 
   const isFormSubmittable = fileToUpload && courseId.trim() && !isProcessing && user;
@@ -104,7 +123,7 @@ export default function ResourcesPage() {
               <BookUp className="h-8 w-8 text-primary" />
               <div>
                 <CardTitle className="text-2xl font-headline tracking-tight">Index Study Material</CardTitle>
-                <CardDescription>Process your lecture notes or PDFs to make them searchable for the chat AI.</CardDescription>
+                <CardDescription>Upload your lecture notes (PDF/TXT) to make them searchable for the chat AI.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -115,8 +134,8 @@ export default function ResourcesPage() {
                 <Input id="courseId" placeholder="E.g., CHEM-101, HIST-203" value={courseId} onChange={(e) => setCourseId(e.target.value)} required disabled={isProcessing} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="file-upload">PDF Document</Label>
-                <Input id="file-upload" type="file" onChange={handleFileSelect} accept=".pdf" disabled={isProcessing} />
+                <Label htmlFor="file-upload">Study Document</Label>
+                <Input id="file-upload" type="file" onChange={handleFileSelect} accept=".pdf,.txt" disabled={isProcessing} />
               </div>
 
               <Button type="submit" className="w-full font-semibold" disabled={!isFormSubmittable}>
@@ -135,7 +154,7 @@ export default function ResourcesPage() {
                 <div className="flex items-start gap-4">
                     <FileText className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
                     <div>
-                        <p>When you upload a PDF, its text content is extracted and split into smaller, manageable chunks.</p>
+                        <p>When you upload a PDF or text file, its content is extracted and split into smaller, manageable chunks.</p>
                     </div>
                 </div>
                 <div className="flex items-start gap-4">
