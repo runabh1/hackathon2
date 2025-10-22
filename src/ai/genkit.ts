@@ -17,6 +17,6 @@ export const ai = genkit({
     googleAI(), // Keep googleAI for embedding and other potential tools
     kompact,    // Register the named plugin instance
   ],
-  // Use the named instance to define the default model
-  model: kompact.model(KOMPACT_AI_MODEL_ID),
+  // The default model configuration was causing a TypeError and has been removed.
+  // Flows will explicitly specify the model ID to use.
 });
