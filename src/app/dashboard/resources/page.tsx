@@ -41,7 +41,7 @@ export default function ResourcesPage() {
 
   const handleUploadMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fileToUpload || !courseId.trim() || !user || !firestore || !storage) {
+    if (!fileToUpload || !courseId.trim() || !user || !storage || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
@@ -49,9 +49,10 @@ export default function ResourcesPage() {
       });
       return;
     }
+    
     setIsUploading(true);
+    setUploadProgress(0);
 
-    // Create a storage reference: `users/{userId}/materials/{fileName}`
     const storageRef = ref(storage, `users/${user.uid}/materials/${fileToUpload.name}`);
     const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
@@ -72,7 +73,6 @@ export default function ResourcesPage() {
         setUploadProgress(0);
       },
       async () => {
-        // Upload completed successfully, now get the download URL
         try {
           const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
           
@@ -91,7 +91,6 @@ export default function ResourcesPage() {
           // Reset form
           setFileToUpload(null);
           setCourseId('');
-
         } catch (error) {
             console.error('Failed to save material reference:', error);
             toast({
