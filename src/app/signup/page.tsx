@@ -26,7 +26,8 @@ export default function SignupPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name });
-      // The useUser hook will handle redirection on successful signup
+      // The useUser hook will handle redirection on successful signup.
+      // We don't need to set loading to false here because the page will redirect.
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -35,6 +36,8 @@ export default function SignupPage() {
       });
       setLoading(false);
     }
+    // No finally block, as we want the loading state to persist until redirection.
+    // If an error occurs, the catch block will handle it.
   };
 
   return (
