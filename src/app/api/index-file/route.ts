@@ -4,6 +4,15 @@ import { getAdminDb } from '@/lib/firebase/tokenService';
 import { indexMaterial } from '@/ai/flows/index-material-flow';
 import pdf from 'pdf-parse';
 
+// Increase the default body size limit to handle larger file uploads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
