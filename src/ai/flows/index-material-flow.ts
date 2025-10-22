@@ -1,29 +1,37 @@
 'use server';
 /**
- * @fileOverview A flow to index study materials for the RAG system.
+ * @fileOverview A flow to process and prepare study materials for indexing.
+ * This flow does NOT write to the database. It chunks text and creates embeddings.
  *
- * - indexMaterial - A function that chunks, embeds, and stores document text in Firestore.
+ * - indexMaterial - A function that chunks and embeds document text.
  * - IndexMaterialInput - The input type for the indexMaterial function.
+ * - IndexMaterialOutput - The output type for the indexMaterial function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getAdminDb } from '@/lib/firebase/tokenService';
 
 // --- Schemas ---
 const IndexMaterialInputSchema = z.object({
-  courseId: z.string().describe('The ID for the course, e.g., "CHEM-101".'),
   documentText: z.string().describe('The raw text content of the study document.'),
-  sourceUrl: z.string().url().or(z.string()).describe('The URL or filename where the original document can be found.'),
-  userId: z.string().describe('The ID of the user who owns this material.'),
 });
 export type IndexMaterialInput = z.infer<typeof IndexMaterialInputSchema>;
+
+// Define the shape of a single processed chunk
+export const ProcessedChunkSchema = z.object({
+  chunk_text: z.string(),
+  vector_embedding: z.array(z.number()),
+});
+export type ProcessedChunk = z.infer<typeof ProcessedChunkSchema>;
+
+// The flow will output an array of these processed chunks
+const IndexMaterialOutputSchema = z.array(ProcessedChunkSchema);
+export type IndexMaterialOutput = z.infer<typeof IndexMaterialOutputSchema>;
 
 // --- Helper Functions ---
 
 /**
  * A simple text chunking function.
- * In a real application, this would be more sophisticated.
  */
 function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
   const chunks: string[] = [];
@@ -38,26 +46,20 @@ function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
 
 /**
  * Generates a mock vector embedding.
- * In a real application, this would call an actual embedding model.
  */
 function createEmbedding(text: string): number[] {
-    // This is a placeholder. A real implementation would use an embedding model.
-    // For now, create a simple vector based on character codes.
     const embedding = Array(128).fill(0);
     for (let i = 0; i < text.length; i++) {
         embedding[i % 128] += text.charCodeAt(i);
     }
-    // Normalize the vector to have a magnitude of 1 (unit vector)
     const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    // Avoid division by zero
     if (norm === 0) return embedding;
     return embedding.map(val => val / norm);
 }
 
-
 // --- Main Flow & Exported Function ---
 
-export async function indexMaterial(input: IndexMaterialInput): Promise<{ success: boolean; chunksIndexed: number }> {
+export async function indexMaterial(input: IndexMaterialInput): Promise<IndexMaterialOutput> {
   return indexMaterialFlow(input);
 }
 
@@ -65,43 +67,22 @@ const indexMaterialFlow = ai.defineFlow(
   {
     name: 'indexMaterialFlow',
     inputSchema: IndexMaterialInputSchema,
-    outputSchema: z.object({
-      success: z.boolean(),
-      chunksIndexed: z.number(),
-    }),
+    outputSchema: IndexMaterialOutputSchema,
   },
-  async (input) => {
-    const firestore = getAdminDb();
-    const { courseId, documentText, sourceUrl, userId } = input;
-
+  async ({ documentText }) => {
     // 1. Chunk the document
     const textChunks = chunkText(documentText);
-    const collectionRef = firestore.collection('study_material_vectors');
-    const batch = firestore.batch();
 
-    // 2. Process each chunk
-    for (const chunk of textChunks) {
-      // 3. Generate a vector embedding for the chunk
+    // 2. Process each chunk to create embeddings
+    const processedChunks = textChunks.map(chunk => {
       const vector_embedding = createEmbedding(chunk);
-
-      // 4. Prepare the document for Firestore
-      const docRef = collectionRef.doc(); // Auto-generate ID
-      batch.set(docRef, {
+      return {
         chunk_text: chunk,
         vector_embedding: vector_embedding,
-        source_url: sourceUrl,
-        course_id: courseId,
-        userId: userId, // Associate with the user
-        createdAt: new Date(),
-      });
-    }
+      };
+    });
 
-    // 5. Commit the batch to Firestore
-    await batch.commit();
-
-    return {
-      success: true,
-      chunksIndexed: textChunks.length,
-    };
+    // 3. Return the array of processed chunks
+    return processedChunks;
   }
 );

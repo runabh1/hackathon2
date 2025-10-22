@@ -9,10 +9,11 @@ import { OAuth2Client } from 'google-auth-library';
 let db: Firestore;
 
 function initializeAdminApp() {
+    const adminAppName = 'admin-app';
     // Ensure we don't initialize the app more than once
-    if (getApps().some(app => app.name === 'admin')) {
+    if (getApps().some(app => app.name === adminAppName)) {
         if (!db) {
-            db = getFirestore('admin');
+            db = getFirestore(getApps().find(app => app.name === adminAppName));
         }
         return;
     }
@@ -30,9 +31,9 @@ function initializeAdminApp() {
 
     initializeApp({
         credential: cert(serviceAccount),
-    }, 'admin'); // Give the admin app a name to avoid conflicts
+    }, adminAppName); // Give the admin app a name to avoid conflicts
     
-    db = getFirestore('admin');
+    db = getFirestore(getApps().find(app => app.name === adminAppName));
 }
 
 export function getAdminDb(): Firestore {

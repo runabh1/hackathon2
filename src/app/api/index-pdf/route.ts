@@ -1,6 +1,7 @@
 // src/app/api/index-pdf/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { indexMaterial } from '@/ai/flows/index-material-flow';
+import { getAdminDb } from '@/lib/firebase/tokenService';
 import pdf from 'pdf-parse';
 
 export async function POST(req: NextRequest) {
@@ -8,32 +9,39 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const courseId = formData.get('courseId') as string | null;
-    const userId = formData.get('userId') as string | null; // Get userId from form data
+    const userId = formData.get('userId') as string | null;
 
     if (!file || !courseId || !userId) {
       return NextResponse.json({ error: 'File, courseId, and userId are required.' }, { status: 400 });
     }
 
-    // Convert file to buffer to be processed by pdf-parse
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-
     // Parse the PDF
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
     const pdfData = await pdf(fileBuffer);
     const documentText = pdfData.text;
 
-    // Call the existing indexing flow
-    const result = await indexMaterial({
-      documentText,
-      courseId,
-      sourceUrl: file.name, // Use the PDF's filename as the source
-      userId, // Pass the userId to the flow
-    });
+    // 1. Call the Genkit flow to get processed chunks
+    const processedChunks = await indexMaterial({ documentText });
 
-    if (result.success) {
-      return NextResponse.json({ message: `Successfully indexed ${result.chunksIndexed} chunks from ${file.name}.` });
-    } else {
-      throw new Error('Indexing flow failed.');
+    // 2. Use the Admin SDK here in the API route to write to Firestore
+    const firestore = getAdminDb();
+    const collectionRef = firestore.collection('study_material_vectors');
+    const batch = firestore.batch();
+
+    for (const chunk of processedChunks) {
+      const docRef = collectionRef.doc(); // Auto-generate ID
+      batch.set(docRef, {
+        ...chunk,
+        source_url: file.name,
+        course_id: courseId,
+        userId: userId,
+        createdAt: new Date(),
+      });
     }
+
+    await batch.commit();
+
+    return NextResponse.json({ message: `Successfully indexed ${processedChunks.length} chunks from ${file.name}.` });
 
   } catch (error: any) {
     console.error('[API - INDEX PDF]', error);
