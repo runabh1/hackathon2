@@ -15,7 +15,6 @@ const IndexMaterialInputSchema = z.object({
   courseId: z.string().describe('The ID for the course, e.g., "CHEM-101".'),
   documentText: z.string().describe('The raw text content of the study document.'),
   sourceUrl: z.string().url().or(z.string()).describe('The URL or filename where the original document can be found.'),
-  fileName: z.string().optional().describe('The name of the uploaded file.'),
 });
 export type IndexMaterialInput = z.infer<typeof IndexMaterialInputSchema>;
 
@@ -72,7 +71,7 @@ const indexMaterialFlow = ai.defineFlow(
   },
   async (input) => {
     const firestore = getAdminDb();
-    const { courseId, documentText, sourceUrl, fileName } = input;
+    const { courseId, documentText, sourceUrl } = input;
 
     // 1. Chunk the document
     const textChunks = chunkText(documentText);
@@ -90,7 +89,6 @@ const indexMaterialFlow = ai.defineFlow(
         chunk_text: chunk,
         vector_embedding: vector_embedding,
         source_url: sourceUrl,
-        file_name: fileName,
         course_id: courseId,
         createdAt: new Date(),
       });
