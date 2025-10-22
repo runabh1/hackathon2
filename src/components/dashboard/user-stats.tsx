@@ -10,6 +10,9 @@ import { useUser, useFirestore, useDoc } from '@/firebase';
 
 async function getGoogleAuthUrl() {
     const response = await fetch('/api/auth/google/url');
+    if (!response.ok) {
+        throw new Error('Failed to get auth URL');
+    }
     const data = await response.json();
     return data.url;
 }
@@ -34,7 +37,12 @@ export function UserStats() {
   const handleLinkGmail = async () => {
     try {
         const authUrl = await getGoogleAuthUrl();
-        window.location.href = authUrl;
+        // Use window.top to break out of any iframes, which is common in development environments.
+        if (window.top) {
+            window.top.location.href = authUrl;
+        } else {
+            window.location.href = authUrl;
+        }
     } catch (error) {
         console.error('Failed to get Google auth URL', error);
         toast({
