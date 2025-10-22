@@ -3,57 +3,83 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { google } from 'googleapis';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 
-// Helper to get tokens from Firestore using the CLIENT SDK
-// This is safe to run on the server here because Genkit flows are server-side.
-async function getTokensFromFirestore(userId: string): Promise<{ refreshToken: string } | null> {
-    // We need a Firestore instance to talk to the database.
-    // Since this is a server-side flow, we can initialize a temporary one.
-    const { firestore } = initializeFirebase();
 
+// This helper should only be run on the server (like in a Genkit flow)
+async function getTokensFromFirestore(userId: string): Promise<{ refreshToken: string } | null> {
+    const { firestore } = initializeFirebase();
     const docRef = doc(firestore, 'users', userId, 'integrations', 'gmail');
     const docSnap = await getDoc(docRef);
 
-    if (!docSnap.exists()) {
-        console.log('No token document found for user:', userId);
+    if (!docSnap.exists() || !docSnap.data()?.refreshToken) {
+        console.log('Refresh token not found for user:', userId);
         return null;
     }
-    const data = docSnap.data();
-    if (!data || !data.refreshToken) {
-        console.log('Refresh token missing for user:', userId);
-        return null;
-    }
-
-    return {
-        refreshToken: data.refreshToken,
-    };
+    return { refreshToken: docSnap.data()!.refreshToken };
 }
 
-// Helper to refresh Google Access Token
 async function refreshGoogleAccessToken(refreshToken: string): Promise<string> {
-    const oauth2Client = new google.auth.OAuth2(
-        process.env.GCP_CLIENT_ID,
-        process.env.GCP_CLIENT_SECRET,
-        process.env.GCP_REDIRECT_URI
-    );
-    oauth2Client.setCredentials({ refresh_token: refreshToken });
-    const { credentials } = await oauth2Client.refreshAccessToken();
-    return credentials.access_token!;
+    try {
+        const oauth2Client = new google.auth.OAuth2(
+            process.env.GCP_CLIENT_ID,
+            process.env.GCP_CLIENT_SECRET,
+            // Use the same hardcoded redirect URI
+            'http://localhost:9002/api/auth/google/callback'
+        );
+        oauth2Client.setCredentials({ refresh_token: refreshToken });
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        if (!credentials.access_token) {
+            throw new Error("Failed to refresh access token.");
+        }
+        return credentials.access_token;
+    } catch (error) {
+        console.error("Error refreshing Google access token:", error);
+        throw new Error("Could not refresh Google access token. The user may need to re-authenticate.");
+    }
 }
 
-// The Genkit Tool
+
 export const emailManagerTool = ai.defineTool(
     {
         name: 'emailManagerTool',
-        description: 'Retrieves and summarizes the latest unread emails for the student. It needs the user ID to fetch the required authentication tokens from the database.',
+        description: 'Manages Gmail integration. It can exchange an authorization code for tokens and store them, or retrieve and summarize the latest unread emails for a user.',
         inputSchema: z.object({
             userId: z.string().describe('The authenticated Firebase User ID of the student.'),
+            authCode: z.string().optional().describe('An authorization code from Google OAuth flow. If provided, the tool will exchange it for tokens and store them.'),
         }),
-        outputSchema: z.string(), // Returns a text summary for the LLM to use
+        outputSchema: z.string(),
     },
-    async ({ userId }) => {
+    async ({ userId, authCode }) => {
+        // SCENARIO 1: Exchange authorization code for tokens
+        if (authCode) {
+            try {
+                 const oauth2Client = new google.auth.OAuth2(
+                    process.env.GCP_CLIENT_ID,
+                    process.env.GCP_CLIENT_SECRET,
+                    'http://localhost:9002/api/auth/google/callback'
+                );
+                const { tokens } = await oauth2Client.getToken(authCode);
+
+                if (tokens.refresh_token && tokens.access_token && tokens.expiry_date) {
+                    const { firestore } = initializeFirebase();
+                    await setDoc(doc(firestore, 'users', userId, 'integrations', 'gmail'), {
+                        accessToken: tokens.access_token,
+                        refreshToken: tokens.refresh_token,
+                        expiresAt: tokens.expiry_date,
+                    }, { merge: true });
+                    return "Successfully linked Gmail account.";
+                } else {
+                     throw new Error('Failed to retrieve the necessary tokens from Google.');
+                }
+            } catch (error: any) {
+                console.error('Error exchanging authorization code:', error);
+                return `Error: Failed to link Gmail account. ${error.message}`;
+            }
+        }
+
+        // SCENARIO 2: Fetch and summarize emails
         const tokens = await getTokensFromFirestore(userId);
         if (!tokens) {
             return "Error: Gmail account not linked. The user needs to link their account first.";
@@ -67,7 +93,6 @@ export const emailManagerTool = ai.defineTool(
             oauth2Client.setCredentials({ access_token: accessToken });
             
             google.options({ auth: oauth2Client });
-
 
             const res = await gmail.users.messages.list({
                 userId: 'me',

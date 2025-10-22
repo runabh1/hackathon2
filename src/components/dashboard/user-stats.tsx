@@ -27,7 +27,7 @@ export function UserStats() {
   const firestore = useFirestore();
 
   // Construct the path only when user and firestore are available
-  const integrationDocPath = user && firestore ? `/users/${user.uid}/integrations/gmail` : null;
+  const integrationDocPath = user && firestore ? `users/${user.uid}/integrations/gmail` : null;
 
   const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath);
 
@@ -44,7 +44,7 @@ export function UserStats() {
     }
     try {
         const authUrl = await getGoogleAuthUrl(user.uid);
-        // Open in a new tab to avoid iframe security issues
+        // Open in a new tab to avoid iframe security issues and pop-up blockers
         window.open(authUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
         console.error('Failed to get Google auth URL', error);

@@ -23,8 +23,9 @@ const SummarizeUnreadEmailsOutputSchema = z.object({
 export type SummarizeUnreadEmailsOutput = z.infer<typeof SummarizeUnreadEmailsOutputSchema>;
 
 export async function summarizeUnreadEmails(input: SummarizeUnreadEmailsInput): Promise<SummarizeUnreadEmailsOutput> {
-  return summarizeUnreadEmailsFlow(input);
+  return summarizeEmailsFlow(input);
 }
+
 
 const summarizeEmailsFlow = ai.defineFlow(
   {
@@ -34,17 +35,20 @@ const summarizeEmailsFlow = ai.defineFlow(
   },
   async ({ userId }) => {
     
+    // Call the LLM, providing the emailManagerTool. 
+    // The LLM will decide to call the tool if it deems it necessary based on the prompt.
+    // We pass the `userId` so the tool can use it.
     const llmResponse = await ai.generate({
       prompt: `Based on the user's unread emails, provide a concise summary. If there are errors or no emails, state that clearly.`,
       tools: [emailManagerTool],
+      // The tool needs the userId, so we provide it here.
+      // The LLM will pass this to the tool when it calls it.
       toolConfig: {
-        // Pass the userId to the tool when the LLM decides to call it.
         emailManagerTool: { userId }
       }
     });
 
-    const toolOutput = llmResponse.toolRequest()?.tool.emailManagerTool.output;
-    const textOutput = llmResponse.text;
+    const toolOutput = llmResponse.text();
 
     // Check if the tool was called and produced output.
     if (toolOutput) {
@@ -52,13 +56,8 @@ const summarizeEmailsFlow = ai.defineFlow(
         return { summary: toolOutput };
       }
        // If the tool ran successfully, we can create a summary from its output.
-      const finalSummary = `Here is a summary of your latest unread emails:\n\n${toolOutput}`;
+      const finalSummary = llmResponse.text();
       return { summary: finalSummary };
-    }
-    
-    // If the tool wasn't called but the LLM generated text, use that.
-    if(textOutput) {
-      return { summary: textOutput };
     }
 
     // Fallback response
