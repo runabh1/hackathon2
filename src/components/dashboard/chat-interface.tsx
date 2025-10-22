@@ -38,6 +38,8 @@ const initialMessage: Message = {
 
 // A simple regex to detect if a question is about a specific course
 const courseQueryRegex = /in|for|about\s+([A-Z]{2,5}-?\d{2,4})\b/i;
+const resourceQueryRegex = /(?:recommend|find|get|suggest)\s(?:resources|links|videos|articles)\s(?:for|on|about)\s(.+)/i;
+const videoQueryRegex = /(?:best|find|get|suggest)\s(?:video|tutorial)\s(?:for|on|about)\s(.+)/i;
 
 
 export function ChatInterface() {
@@ -72,6 +74,8 @@ export function ChatInterface() {
       let assistantMessage: Message;
       const lowercasedInput = currentInput.toLowerCase();
       const courseMatch = currentInput.match(courseQueryRegex);
+      const resourceMatch = currentInput.match(resourceQueryRegex);
+      const videoMatch = currentInput.match(videoQueryRegex);
 
       if (courseMatch && courseMatch[1]) {
         const courseId = courseMatch[1].toUpperCase();
@@ -90,7 +94,7 @@ export function ChatInterface() {
           sources: result.sources,
         };
 
-      } else if (lowercasedInput.includes('summarize') && lowercasedInput.includes('email')) {
+      } else if (lowercasedInput.includes('summarize') || lowercasedInput.includes('email')) {
         const response = await summarizeUnreadEmails({ userId: user.uid });
         assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.summary };
       } else if (lowercasedInput.includes('attendance') || lowercasedInput.includes('present')) {
@@ -100,11 +104,18 @@ export function ChatInterface() {
           isPresent: true,
         });
         assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.message + " I've updated your status on the dashboard." };
-      } else if (lowercasedInput.includes('recommend resources for')) {
-        const topic = currentInput.replace(/recommend resources for/i, '').trim();
+      } else if (resourceMatch || videoMatch || lowercasedInput.includes('recommend resources for')) {
+        let topic = '';
+        if (resourceMatch && resourceMatch[1]) {
+            topic = resourceMatch[1];
+        } else if (videoMatch && videoMatch[1]) {
+            topic = videoMatch[1];
+        } else {
+            topic = currentInput.replace(/recommend resources for/i, '').trim();
+        }
         const response = await recommendLearningResources({ topic });
         assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.recommendations };
-      } else if (lowercasedInput.includes('career insights for')) {
+      } else if (lowercasedInput.includes('career') || lowercasedInput.includes('insights')) {
         const field = currentInput.replace(/career insights for/i, '').trim();
         const response = await generateCareerInsights({ field });
         assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.insights };
