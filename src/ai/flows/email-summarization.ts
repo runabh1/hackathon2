@@ -26,52 +26,55 @@ export async function summarizeUnreadEmails(input: SummarizeUnreadEmailsInput): 
   return summarizeUnreadEmailsFlow(input);
 }
 
-const summarizeUnreadEmailsPrompt = ai.definePrompt({
-  name: 'summarizeUnreadEmailsPrompt',
-  input: {schema: z.object({
-    emailSummary: z.string(),
-  })},
-  output: {schema: SummarizeUnreadEmailsOutputSchema},
-  prompt: `You are an AI assistant helping a student manage their email inbox.
-  Summarize the following unread emails to help the student quickly understand the important information and prioritize their responses:
+const summarizeEmailsFlow = ai.defineFlow(
+  {
+    name: 'summarizeEmailsFlow',
+    inputSchema: SummarizeUnreadEmailsInputSchema,
+    outputSchema: SummarizeUnreadEmailsOutputSchema,
+  },
+  async ({ userId }) => {
+    
+    const llmResponse = await ai.generate({
+      prompt: `Based on the user's unread emails, provide a concise summary. If there are errors or no emails, state that clearly.`,
+      tools: [emailManagerTool],
+      toolConfig: {
+        // Pass the userId to the tool when the LLM decides to call it.
+        emailManagerTool: { userId }
+      }
+    });
 
-  {{{emailSummary}}}
+    const toolOutput = llmResponse.toolRequest()?.tool.emailManagerTool.output;
+    const textOutput = llmResponse.text;
 
-  Please provide a concise summary of the key information from these emails.`,
-});
+    // Check if the tool was called and produced output.
+    if (toolOutput) {
+      if (toolOutput.startsWith('Error:')) {
+        return { summary: toolOutput };
+      }
+       // If the tool ran successfully, we can create a summary from its output.
+      const finalSummary = `Here is a summary of your latest unread emails:\n\n${toolOutput}`;
+      return { summary: finalSummary };
+    }
+    
+    // If the tool wasn't called but the LLM generated text, use that.
+    if(textOutput) {
+      return { summary: textOutput };
+    }
+
+    // Fallback response
+    return { summary: 'I was unable to retrieve your emails at this time. Please ensure your Gmail account is linked and try again.' };
+  }
+);
+
 
 const summarizeUnreadEmailsFlow = ai.defineFlow(
   {
     name: 'summarizeUnreadEmailsFlow',
     inputSchema: SummarizeUnreadEmailsInputSchema,
     outputSchema: SummarizeUnreadEmailsOutputSchema,
-    tools: [emailManagerTool]
   },
   async (input) => {
-    const llmResponse = await ai.generate({
-        prompt: `Summarize the user's unread emails.`,
-        tools: [emailManagerTool],
-        toolConfig: {
-          emailManagerTool: {
-            userId: input.userId
-          }
-        }
-    });
-
-    const toolResponse = llmResponse.toolRequest()?.tool.emailManagerTool;
-
-    if (!toolResponse) {
-      return { summary: "Could not retrieve emails. The user may need to link their Gmail account." };
-    }
-    
-    const summary = toolResponse.output;
-
-    if (!summary || summary.startsWith('Error')) {
-      return { summary: summary || "An unknown error occurred while fetching emails." };
-    }
-    
-    const { output } = await summarizeUnreadEmailsPrompt({ emailSummary: summary });
-
-    return output!;
+    // This outer flow now simply calls the properly configured inner flow.
+    return summarizeEmailsFlow(input);
   }
 );

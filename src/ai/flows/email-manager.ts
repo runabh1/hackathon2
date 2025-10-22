@@ -3,33 +3,20 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { google } from 'googleapis';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import {doc, getDoc} from "firebase/firestore";
-import { useFirestore } from '@/firebase';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
-// Helper to get tokens from Firestore
-async function getTokensFromFirestore(userId: string): Promise<{ accessToken: string, refreshToken: string } | null> {
-    // This is a client-side function now, it should not use firebase-admin
-    // This function will need to be called from a component that has access to firestore instance
-    // For a tool, it's better to fetch this from a secure backend endpoint,
-    // but for simplicity of this single file, let's assume this tool is run in an environment
-    // that can be configured with the user's firestore instance.
-    // The current implementation is problematic because a server-side tool can't use client-side hooks.
-    // Let's refactor to use Firebase Admin SDK, but it must be initialized properly.
-    
-    if (!getApps().length) {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-        initializeApp({
-            credential: cert(serviceAccount),
-        });
-    }
-    const db = getFirestore();
+// Helper to get tokens from Firestore using the CLIENT SDK
+// This is safe to run on the server here because Genkit flows are server-side.
+async function getTokensFromFirestore(userId: string): Promise<{ refreshToken: string } | null> {
+    // We need a Firestore instance to talk to the database.
+    // Since this is a server-side flow, we can initialize a temporary one.
+    const { firestore } = initializeFirebase();
 
-    const docRef = db.collection('users').doc(userId).collection('integrations').doc('gmail');
-    const docSnap = await docRef.get();
+    const docRef = doc(firestore, 'users', userId, 'integrations', 'gmail');
+    const docSnap = await getDoc(docRef);
 
-    if (!docSnap.exists) {
+    if (!docSnap.exists()) {
         console.log('No token document found for user:', userId);
         return null;
     }
@@ -40,7 +27,6 @@ async function getTokensFromFirestore(userId: string): Promise<{ accessToken: st
     }
 
     return {
-        accessToken: data.accessToken,
         refreshToken: data.refreshToken,
     };
 }
@@ -61,7 +47,7 @@ async function refreshGoogleAccessToken(refreshToken: string): Promise<string> {
 export const emailManagerTool = ai.defineTool(
     {
         name: 'emailManagerTool',
-        description: 'Retrieves and summarizes the latest unread emails for the student.',
+        description: 'Retrieves and summarizes the latest unread emails for the student. It needs the user ID to fetch the required authentication tokens from the database.',
         inputSchema: z.object({
             userId: z.string().describe('The authenticated Firebase User ID of the student.'),
         }),
