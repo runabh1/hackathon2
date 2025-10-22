@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, CalendarCheck2, Loader2, Link as LinkIcon } from 'lucide-react';
@@ -23,8 +23,20 @@ export function UserStats() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const integrationDocPath = user ? `/users/${user.uid}/integrations/gmail` : '';
-  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath);
+  const integrationDocPath = useMemo(() => {
+    if (!user) return null;
+    return `users/${user.uid}/integrations/gmail`;
+  }, [user]);
+
+  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath || '');
+
+  useEffect(() => {
+    // This check is important because useDoc will return data for an empty path
+    // if not handled carefully.
+    if (!integrationDocPath) {
+      return;
+    }
+  }, [integrationDocPath]);
 
   const isGmailLinked = gmailIntegration && gmailIntegration.refreshToken;
 
