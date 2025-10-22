@@ -9,12 +9,11 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getFirestore } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/lib/firebase/tokenService';
 
 // --- Schemas ---
 export const StudyGuideRAGInputSchema = z.object({
-  query: z.string().describe('The student\'s question.'),
+  query: z.string().describe("The student's question."),
   courseId: z.string().describe('The course context, e.g., "CHEM-101".'),
 });
 export type StudyGuideRAGInput = z.infer<typeof StudyGuideRAGInputSchema>;
@@ -31,39 +30,36 @@ export type StudyGuideRAGOutput = z.infer<typeof StudyGuideRAGOutputSchema>;
 /**
  * Generates a mock vector embedding for the query.
  */
-function generateMockEmbedding(text: string): number[] {
+function createEmbedding(text: string): number[] {
     const embedding = Array(128).fill(0);
     for (let i = 0; i < text.length; i++) {
         embedding[i % 128] += text.charCodeAt(i);
     }
     const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+    if (norm === 0) return embedding;
     return embedding.map(val => val / norm);
 }
 
 /**
  * Calculates cosine similarity between two vectors.
+ * Assumes vectors are unit vectors (magnitude of 1).
  */
 function cosineSimilarity(vecA: number[], vecB: number[]): number {
-    const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-    const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
-    const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
-    if (magnitudeA === 0 || magnitudeB === 0) {
-        return 0;
-    }
-    return dotProduct / (magnitudeA * magnitudeB);
+    // For unit vectors, cosine similarity is simply the dot product.
+    return vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
 }
 
 /**
  * Simulates a vector search in Firestore.
- * In a real-world scenario, you would use a dedicated vector database like Pinecone,
- * or a Firestore extension like `pgvector`.
+ * This fetches all documents for a course and calculates similarity in-memory.
+ * This is NOT efficient for large datasets but works for a hackathon.
  */
 async function findSimilarChunks(
   firestore: FirebaseFirestore.Firestore,
   query: string,
   courseId: string
 ): Promise<{ chunks: string[]; sources: string[] }> {
-  const queryVector = generateMockEmbedding(query);
+  const queryVector = createEmbedding(query);
 
   const collectionRef = firestore.collection('study_material_vectors');
   const snapshot = await collectionRef.where('course_id', '==', courseId).get();
@@ -76,7 +72,7 @@ async function findSimilarChunks(
   snapshot.forEach(doc => {
     const data = doc.data();
     const docVector = data.vector_embedding;
-    if (Array.isArray(docVector)) {
+    if (Array.isArray(docVector) && docVector.length === queryVector.length) {
         const similarity = cosineSimilarity(queryVector, docVector);
         similarities.push({ text: data.chunk_text, source: data.source_url, similarity });
     }
@@ -98,7 +94,8 @@ const ragPrompt = ai.definePrompt(
     {
       name: 'studyGuideRAGPrompt',
       input: { schema: z.object({ query: z.string(), context: z.array(z.string()) }) },
-      output: { schema: StudyGuideRAGOutputSchema.pick({ answer: true }) }, // Only ask the LLM for the answer part
+      // Only ask the LLM for the answer. We will add the sources manually.
+      output: { schema: z.object({ answer: z.string() }) },
       prompt: `You are an expert study assistant. Your role is to provide clear, concise, and accurate answers based *only* on the context provided.
   
       CONTEXT:

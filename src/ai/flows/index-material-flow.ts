@@ -8,7 +8,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getFirestore } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/lib/firebase/tokenService';
 
 // --- Schemas ---
@@ -40,15 +39,17 @@ function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
  * Generates a mock vector embedding.
  * In a real application, this would call an actual embedding model.
  */
-function generateMockEmbedding(text: string): number[] {
+function createEmbedding(text: string): number[] {
     // This is a placeholder. A real implementation would use an embedding model.
-    // For now, create a vector based on character codes.
+    // For now, create a simple vector based on character codes.
     const embedding = Array(128).fill(0);
     for (let i = 0; i < text.length; i++) {
         embedding[i % 128] += text.charCodeAt(i);
     }
-    // Normalize the vector
+    // Normalize the vector to have a magnitude of 1 (unit vector)
     const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+    // Avoid division by zero
+    if (norm === 0) return embedding;
     return embedding.map(val => val / norm);
 }
 
@@ -79,14 +80,14 @@ const indexMaterialFlow = ai.defineFlow(
 
     // 2. Process each chunk
     for (const chunk of textChunks) {
-      // 3. Generate a (mock) vector embedding for the chunk
-      const vector_embedding = generateMockEmbedding(chunk);
+      // 3. Generate a vector embedding for the chunk
+      const vector_embedding = createEmbedding(chunk);
 
       // 4. Prepare the document for Firestore
       const docRef = collectionRef.doc(); // Auto-generate ID
       batch.set(docRef, {
         chunk_text: chunk,
-        vector_embedding: vector_embedding, // Storing mock vector
+        vector_embedding: vector_embedding,
         source_url: sourceUrl,
         course_id: courseId,
         createdAt: new Date(),
