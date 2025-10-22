@@ -8,7 +8,7 @@
  * - StudyGuideRAGOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, KOMPACT_AI_MODEL_ID } from '@/ai/genkit';
 import { z } from 'genkit';
 
 // --- Schemas ---
@@ -67,9 +67,13 @@ const studyGuideRAGFlow = ai.defineFlow(
     }
 
     // Call the LLM with the augmented prompt
-    const llmResponse = await ragPrompt(input);
+    const llmResponse = await ai.generate({
+        model: KOMPACT_AI_MODEL_ID,
+        prompt: await ragPrompt.render(input),
+        config: { temperature: 0.1 },
+    });
     
-    const output = llmResponse.output;
+    const output = llmResponse.output();
 
     if (!output) {
         throw new Error("Failed to get a response from the AI model.");

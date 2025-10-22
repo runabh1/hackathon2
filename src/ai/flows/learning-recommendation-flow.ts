@@ -7,7 +7,7 @@
  * - LearningRecommendationOutput - The return type for the recommendLearningResources function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, KOMPACT_AI_MODEL_ID} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const LearningRecommendationInputSchema = z.object({
@@ -46,7 +46,10 @@ const learningRecommendationFlow = ai.defineFlow(
     outputSchema: LearningRecommendationOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await ai.generate({
+        model: KOMPACT_AI_MODEL_ID,
+        prompt: await prompt.render(input),
+    });
     return output!;
   }
 );

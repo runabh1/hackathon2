@@ -8,7 +8,7 @@
  * - SummarizeUnreadEmailsOutput - The return type for the summarizeUnreadEmails function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, KOMPACT_AI_MODEL_ID} from '@/ai/genkit';
 import {z} from 'genkit';
 import { emailManagerTool } from './email-manager';
 
@@ -38,6 +38,7 @@ const summarizeEmailsFlow = ai.defineFlow(
     // The LLM will decide to call the tool if it deems it necessary.
     // The tool has the userId and will handle fetching the token and emails.
     const llmResponse = await ai.generate({
+      model: KOMPACT_AI_MODEL_ID,
       prompt: `Please summarize the user's latest unread emails. If there are no emails, state that. If there's an error, report the error message clearly.`,
       tools: [emailManagerTool],
       toolConfig: {

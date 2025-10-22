@@ -7,7 +7,7 @@
  * - CareerInsightsOutput - The return type for the generateCareerInsights function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, KOMPACT_AI_MODEL_ID} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const CareerInsightsInputSchema = z.object({
@@ -43,7 +43,10 @@ const careerInsightsFlow = ai.defineFlow(
     outputSchema: CareerInsightsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await ai.generate({
+        model: KOMPACT_AI_MODEL_ID,
+        prompt: await prompt.render(input),
+    });
     return output!;
   }
 );
