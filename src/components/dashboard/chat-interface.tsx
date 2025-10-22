@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -9,10 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Loader2, BrainCircuit, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
-import { summarizeUnreadEmails } from '@/ai/flows/email-summarization';
-import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
-import { recommendLearningResources } from '@/ai/flows/learning-recommendation-flow';
-import { generateCareerInsights } from '@/ai/flows/career-insights-flow';
+import { chat, type ChatMessage } from '@/ai/flows/chat-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import {
@@ -21,38 +19,35 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {runFlow} from '@genkit-ai/next';
 
-
-type Message = {
-  id: number;
+type DisplayMessage = {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   sources?: string[];
+  isStreaming?: boolean;
 };
 
-const initialMessage: Message = {
-  id: 1,
+const initialMessage: DisplayMessage = {
+  id: '1',
   role: 'assistant',
   content: "Hello! I'm MentorAI. How can I help you with your studies, schedule, or emails today?",
 };
 
-// More robust regex for various query types
-const courseQueryRegex = /in|for|about|on\s+([A-Z]{2,5}-?\d{2,4})\b/i;
-const resourceQueryRegex = /(?:recommend|find|get|suggest)\s.*(resources|links|videos|articles|tutorials)\s.*(?:for|on|about)\s(.+)/i;
-const careerQueryRegex = /career|insights on (.+)/i;
-const emailQueryRegex = /summarize|read|check\smy\s(email|emails)/i;
-const attendanceQueryRegex = /attendance|present|absent/i;
-
+// Simple regex to extract courseId from prompt
+const courseQueryRegex = /\b([A-Z]{2,5}-?\d{2,4})\b/i;
 
 export function ChatInterface() {
   const { user } = useUser();
-  const [messages, setMessages] = useState<Message[]>([initialMessage]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([initialMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<React.ElementRef<'div'>>(null);
   const { toast } = useToast();
 
   useEffect(() => {
+    // Auto-scroll to the bottom
     if (scrollAreaRef.current) {
       scrollAreaRef.current.children[1].scrollTop = scrollAreaRef.current.children[1].scrollHeight;
     }
@@ -62,84 +57,68 @@ export function ChatInterface() {
     e.preventDefault();
     if (!input.trim() || isLoading || !user) return;
 
-    const userMessage: Message = {
-      id: Date.now(),
-      role: 'user',
-      content: input,
-    };
-    setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
     setInput('');
     setIsLoading(true);
 
-    try {
-      let assistantMessage: Message;
-      const lowercasedInput = currentInput.toLowerCase();
-      
-      const courseMatch = currentInput.match(courseQueryRegex);
-      const resourceMatch = currentInput.match(resourceQueryRegex);
-      const careerMatch = lowercasedInput.match(careerQueryRegex);
-      const emailMatch = lowercasedInput.match(emailQueryRegex);
-      const attendanceMatch = lowercasedInput.match(attendanceQueryRegex);
+    const userMessage: DisplayMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: currentInput,
+    };
 
-      if (courseMatch && courseMatch[1]) {
-        const courseId = courseMatch[1].toUpperCase();
-        const response = await fetch('/api/study-chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: currentInput, courseId, userId: user.uid }),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to get study guide from RAG.');
-        
-        assistantMessage = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: result.answer,
-          sources: result.sources,
-        };
-      } else if (emailMatch) {
-        const response = await summarizeUnreadEmails({ userId: user.uid });
-        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.summary };
-      } else if (attendanceMatch) {
-        const response = await updateAttendanceRecord({
-          studentId: user.uid,
-          date: new Date().toISOString().split('T')[0],
-          isPresent: true,
-        });
-        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.message + " You can view the change on the attendance page." };
-      } else if (resourceMatch && resourceMatch[2]) {
-        const topic = resourceMatch[2].trim();
-        const response = await recommendLearningResources({ topic });
-        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.recommendations };
-      } else if (careerMatch) {
-        const field = careerMatch[1] ? careerMatch[1].trim() : currentInput.replace(/career insights for/i, '').trim();
-        const response = await generateCareerInsights({ field });
-        assistantMessage = { id: Date.now() + 1, role: 'assistant', content: response.insights };
-      } else {
-         assistantMessage = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: "I can help with questions about your courses (e.g., 'explain mitosis in BIO-101'), summarizing emails, or recommending resources. What would you like to do?",
-        };
-      }
-      
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error: any) {
-      console.error("Error calling AI flow:", error);
-      toast({
-        variant: 'destructive',
-        title: 'An Error Occurred',
-        description: error.message || 'I was unable to process your request. Please try again.',
-      });
-      const errorMessage: Message = {
-        id: Date.now() + 1,
+    const assistantMessageId = crypto.randomUUID();
+    const assistantMessage: DisplayMessage = {
+        id: assistantMessageId,
         role: 'assistant',
-        content: "I'm sorry, but I encountered an error while processing your request. Please try again later.",
-      };
-      setMessages(prev => [...prev, errorMessage]);
+        content: '',
+        isStreaming: true,
+    }
+    
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
+
+    // Transform DisplayMessage[] to the ChatMessage[] format expected by the flow
+    const history: ChatMessage[] = messages.filter(m => m.id !== initialMessage.id).map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        content: [{ text: m.content }]
+    }));
+    
+    const courseMatch = currentInput.match(courseQueryRegex);
+    const courseId = courseMatch ? courseMatch[1].toUpperCase() : undefined;
+
+    try {
+        const stream = runFlow(chat, { 
+            prompt: currentInput, 
+            history, 
+            userId: user.uid,
+            courseId
+        });
+        
+        for await (const chunk of stream) {
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === assistantMessageId
+                  ? { ...msg, content: (msg.content || '') + chunk }
+                  : msg
+              )
+            );
+        }
+
+    } catch (error: any) {
+        console.error("Error calling AI flow:", error);
+        toast({
+            variant: 'destructive',
+            title: 'An Error Occurred',
+            description: error.message || 'I was unable to process your request. Please try again.',
+        });
+        setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
+        setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
+            )
+        );
     }
   };
   
@@ -177,6 +156,7 @@ export function ChatInterface() {
                 >
                     <article className="prose prose-sm dark:prose-invert prose-p:my-0 prose-headings:my-2 prose-a:text-primary hover:prose-a:underline">
                       <ReactMarkdown>{message.content}</ReactMarkdown>
+                      {message.isStreaming && <span className="animate-pulse">▍</span>}
                     </article>
                 </div>
                 {message.sources && message.sources.length > 0 && (
@@ -206,7 +186,7 @@ export function ChatInterface() {
               )}
             </div>
           ))}
-          {isLoading && (
+          {isLoading && messages[messages.length-1]?.role === 'user' && (
              <div className="flex items-start gap-3 justify-start">
                 <Avatar className="w-8 h-8 border-2 border-primary/50">
                   <div className="w-full h-full flex items-center justify-center bg-primary">
@@ -226,7 +206,7 @@ export function ChatInterface() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your course, e.g., 'explain mitosis in BIO-101'"
+            placeholder="Ask me anything..."
             className="flex-1"
             disabled={isLoading}
           />
