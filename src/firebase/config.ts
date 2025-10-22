@@ -1,6 +1,6 @@
 
 export const firebaseConfig = {
-  apiKey: "REDACTED",
+  apiKey: "AIzaSyDgTWL_X24jSsMTxHISaeFCoMkGbeuFQNM",
   authDomain: "hackathon-30b95.firebaseapp.com",
   projectId: "hackathon-30b95",
   storageBucket: "hackathon-30b95.appspot.com",
