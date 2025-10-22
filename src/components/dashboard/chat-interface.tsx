@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Loader2, BrainCircuit, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
-import { chat, type ChatMessage } from '@/ai/flows/chat-flow';
+import type { ChatMessage } from '@/ai/flows/chat-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import {
@@ -19,7 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import {runFlow} from '@genkit-ai/next';
+import { runChatFlow } from '@/app/actions';
 
 type DisplayMessage = {
   id: string;
@@ -87,7 +87,7 @@ export function ChatInterface() {
     const courseId = courseMatch ? courseMatch[1].toUpperCase() : undefined;
 
     try {
-        const stream = runFlow(chat, { 
+        const stream = runChatFlow({ 
             prompt: currentInput, 
             history, 
             userId: user.uid,
