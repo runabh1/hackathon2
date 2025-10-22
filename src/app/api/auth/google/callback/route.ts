@@ -4,54 +4,44 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
 
 // Initialize Firebase Admin SDK if not already initialized
 if (!getApps().length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+  } catch (error) {
+    console.error('Firebase Admin Initialization Error in Callback:', error);
+    // Return a generic error response
+    return new NextResponse(
+        JSON.stringify({ error: 'Internal Server Error: Could not initialize Firebase Admin.' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams, host, protocol } = new URL(req.url);
   const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  
-  const cookieStore = cookies();
-  const storedState = cookieStore.get('google_oauth_state')?.value;
+  const state = searchParams.get('state'); // The state should contain the userId
 
   if (!code) {
     return NextResponse.json({ error: 'Missing authorization code' }, { status: 400 });
   }
 
-  // Security check: Ensure the state matches to prevent CSRF attacks.
-  // In a more robust implementation, the 'state' would be a securely generated random string.
-  // For now, we'll assume a simple check or pass the UID in the state.
-  // A simple approach is to use the referer, but state is better.
-  // Let's assume the state contains the user UID for this example.
-
-  // Let's get the user from the session cookie
-  const sessionCookie = cookieStore.get('__session')?.value || '';
-  let decodedToken;
-  try {
-    decodedToken = await getAuth().verifySessionCookie(sessionCookie, true);
-  } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized: Invalid session cookie' }, { status: 401 });
+  if (!state) {
+    return NextResponse.json({ error: 'Missing state parameter containing userId' }, { status: 400 });
   }
   
-  const userId = decodedToken.uid;
-  
-  if (!userId) {
-     return NextResponse.json({ error: 'Unauthorized: Could not identify user.' }, { status: 401 });
-  }
+  const userId = state; // The user ID is passed in the state
 
   try {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GCP_CLIENT_ID,
       process.env.GCP_CLIENT_SECRET,
-      process.env.GCP_REDIRECT_URI
+      `${protocol}//${host}/api/auth/google/callback` // Use dynamic redirect URI
     );
 
     const { tokens } = await oauth2Client.getToken(code);
@@ -67,22 +57,21 @@ export async function GET(req: NextRequest) {
                 refreshToken: tokens.refresh_token,
                 expiresAt: tokens.expiry_date,
             }, { merge: true });
-    } else {
+    } else if (tokens.access_token) {
         // Handle cases where a refresh token isn't provided (e.g., re-authentication)
-        // You might just update the access token here if needed.
-        if (tokens.access_token) {
-             await getFirestore()
-            .collection('users').doc(userId)
-            .collection('integrations').doc('gmail')
-            .set({
-                accessToken: tokens.access_token,
-                expiresAt: tokens.expiry_date,
-            }, { merge: true });
-        }
+        await getFirestore()
+        .collection('users').doc(userId)
+        .collection('integrations').doc('gmail')
+        .set({
+            accessToken: tokens.access_token,
+            expiresAt: tokens.expiry_date,
+        }, { merge: true });
+    } else {
+        throw new Error('Failed to retrieve necessary tokens from Google.');
     }
     
     // Redirect user back to the dashboard.
-    const redirectUrl = `${protocol}//${host}/dashboard`;
+    const redirectUrl = `${protocol}//${host}/dashboard?gmail_linked=true`;
     return NextResponse.redirect(redirectUrl);
 
   } catch (error: any) {

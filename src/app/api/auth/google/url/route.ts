@@ -1,12 +1,19 @@
 // src/app/api/auth/google/url/route.ts
 import { google } from 'googleapis';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams, host, protocol } = new URL(req.url);
+  const userId = searchParams.get('userId');
+
+  if (!userId) {
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+  }
+
   const oauth2Client = new google.auth.OAuth2(
     process.env.GCP_CLIENT_ID,
     process.env.GCP_CLIENT_SECRET,
-    process.env.GCP_REDIRECT_URI
+    `${protocol}//${host}/api/auth/google/callback`
   );
 
   const scopes = [
@@ -17,6 +24,7 @@ export async function GET() {
     access_type: 'offline', // Important to get a refresh token
     scope: scopes,
     prompt: 'consent', // Ensures the user sees the consent screen every time
+    state: userId, // Pass the userId in the state parameter
   });
 
   return NextResponse.json({ url });

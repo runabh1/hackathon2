@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, CalendarCheck2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useDoc } from '@/firebase';
+import { useUser, useFirestore, useDoc } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
-async function getGoogleAuthUrl() {
-    const response = await fetch('/api/auth/google/url');
+async function getGoogleAuthUrl(userId: string) {
+    const response = await fetch(`/api/auth/google/url?userId=${userId}`);
     if (!response.ok) {
         throw new Error('Failed to get auth URL');
     }
@@ -22,21 +23,27 @@ export function UserStats() {
   const [unreadEmails, setUnreadEmails] = useState(0); // This will be updated by the tool
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
+  const firestore = useFirestore();
 
-  const integrationDocPath = useMemo(() => {
-    if (!user) return null;
-    return `users/${user.uid}/integrations/gmail`;
-  }, [user]);
+  // Construct the path only when user and firestore are available
+  const integrationDocPath = user && firestore ? `/users/${user.uid}/integrations/gmail` : null;
 
   const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath);
 
-
   const isGmailLinked = !!(gmailIntegration && gmailIntegration.refreshToken);
-
+  
   const handleLinkGmail = async () => {
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Not Logged In',
+            description: 'You must be logged in to link your Gmail account.',
+        });
+        return;
+    }
     try {
-        const authUrl = await getGoogleAuthUrl();
+        const authUrl = await getGoogleAuthUrl(user.uid);
         // Open in a new tab to avoid iframe security issues
         window.open(authUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
@@ -78,7 +85,7 @@ export function UserStats() {
     }
   };
 
-  if (!user) {
+  if (userLoading) {
     return (
         <Card className="border-none shadow-none bg-transparent">
             <CardHeader className="p-2">
