@@ -5,20 +5,22 @@ import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import openAI from '@genkit-ai/compat-oai';
 
-const KOMPACT_AI_BASE_URL = 'https://api.kompact.ai/v1';
-export const KOMPACT_AI_MODEL_ID = 'kompact-ai-llama-7b';
+// Configuration for an OpenAI-compatible Llama2 model endpoint
+const LLAMA_API_BASE_URL = 'https://api.example.com/v1'; // Replace with your Llama 2 provider's URL
+export const LLAMA_2_7B_MODEL_ID = 'llama-2-7b-chat'; // Replace with the specific model ID from your provider
 
-// Give the openAI plugin an instance name, e.g., 'kompact'
-const kompact = openAI({
-    apiKey: process.env.KOMPACT_AI_API_KEY,
-    baseUrl: KOMPACT_AI_BASE_URL,
+const llamaPlugin = openAI({
+    apiKey: process.env.LLAMA_API_KEY, // Assumes API key is in this env var
+    baseUrl: LLAMA_API_BASE_URL,
 });
 
 export const ai = genkit({
   plugins: [
     googleAI(), // Keep googleAI for embedding and other potential tools
-    kompact,    // Register the named plugin instance
+    llamaPlugin,    // Register the Llama 2 plugin
   ],
-  // The default model configuration was causing a TypeError and has been removed.
   // Flows will explicitly specify the model ID to use.
 });
+
+// For backward compatibility if any old constants were imported elsewhere.
+export const KOMPACT_AI_MODEL_ID = LLAMA_2_7B_MODEL_ID;
