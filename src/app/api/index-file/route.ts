@@ -1,3 +1,4 @@
+
 // src/app/api/index-file/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase/tokenService';
@@ -25,7 +26,6 @@ export async function POST(req: NextRequest) {
     // Decode the Base64 file content
     const buffer = Buffer.from(fileContent, 'base64');
     
-    // Extract text from the PDF
     let textContent = '';
     if (fileName.toLowerCase().endsWith('.pdf')) {
       const data = await pdf(buffer);
