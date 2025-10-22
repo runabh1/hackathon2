@@ -11,6 +11,8 @@ import { useUser } from '@/firebase';
 import { generateContextAwareStudyGuide } from '@/ai/flows/study-guide-flow';
 import { summarizeUnreadEmails } from '@/ai/flows/email-summarization';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
+import { recommendLearningResources } from '@/ai/flows/learning-recommendation-flow';
+import { generateCareerInsights } from '@/ai/flows/career-insights-flow';
 import { useToast } from '@/hooks/use-toast';
 
 type Message = {
@@ -66,6 +68,14 @@ export function ChatInterface() {
           isPresent: true,
         });
         assistantContent = response.message + " I've updated your status on the dashboard.";
+      } else if (lowercasedInput.includes('recommend resources for')) {
+        const topic = input.replace(/recommend resources for/i, '').trim();
+        const response = await recommendLearningResources({ topic });
+        assistantContent = response.recommendations;
+      } else if (lowercasedInput.includes('career insights for')) {
+        const field = input.replace(/career insights for/i, '').trim();
+        const response = await generateCareerInsights({ field });
+        assistantContent = response.insights;
       } else {
         const response = await generateContextAwareStudyGuide({ query: input });
         assistantContent = response.answer;
