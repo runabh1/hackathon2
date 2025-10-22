@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -160,13 +161,15 @@ export function ChatInterface() {
               <div className="flex flex-col gap-2 items-start">
                 <div
                     className={cn(
-                    'max-w-md rounded-lg px-4 py-2 text-sm md:text-base whitespace-pre-wrap',
+                    'max-w-md rounded-lg px-4 py-2 text-sm md:text-base',
                     message.role === 'user'
                         ? 'bg-primary text-primary-foreground rounded-br-none'
                         : 'bg-muted text-muted-foreground rounded-bl-none'
                     )}
                 >
-                    {message.content}
+                    <article className="prose prose-sm dark:prose-invert prose-p:my-0 prose-headings:my-2 prose-a:text-primary hover:prose-a:underline">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </article>
                 </div>
                 {message.sources && message.sources.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 max-w-md">

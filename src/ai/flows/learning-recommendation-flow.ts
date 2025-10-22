@@ -30,10 +30,9 @@ const prompt = ai.definePrompt({
   output: {schema: LearningRecommendationOutputSchema},
   prompt: `You are an expert learning assistant AI. Your task is to recommend high-quality, free online resources for a given topic.
 
-For the topic "{{{topic}}}", please provide a list of learning resources. Include a mix of:
-1.  **Articles or Blog Posts**: Link to insightful articles.
-2.  **Videos**: Link to tutorials or lectures (e.g., on YouTube).
-3.  **Interactive Tutorials**: Link to websites with hands-on exercises.
+For the topic "{{{topic}}}", please provide a list of learning resources. Include:
+1.  **YouTube Videos**: A list of 2-3 helpful videos. Format as a markdown list with the title as the link text, e.g., "[Video Title](https://youtube.com/watch?v=...)".
+2.  **Google Search Links**: A list of 2-3 pre-filled Google search queries for further reading. Format as a markdown list, e.g., "[Search for key concepts in Topic](https://google.com/search?q=...)".
 
 Format the output clearly with headings for each resource type.
 `,
