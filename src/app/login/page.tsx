@@ -2,41 +2,86 @@
 
 import { AuthFormWrapper } from '@/components/auth/auth-form-wrapper';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/firebase';
-import { GoogleAuthProvider, signInWithRedirect } from 'firebase/auth';
-import { FcGoogle } from 'react-icons/fc';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import Link from 'next/link';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const auth = useAuth();
+  const { toast } = useToast();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleGoogleSignIn = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!auth) return;
-    const provider = new GoogleAuthProvider();
+    setLoading(true);
+
     try {
-      await signInWithRedirect(auth, provider);
-    } catch (error) {
-      console.error('Error during sign-in:', error);
+      await signInWithEmailAndPassword(auth, email, password);
+      // The useUser hook will handle redirection on successful login
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: error.message || 'An unexpected error occurred.',
+      });
+      setLoading(false);
     }
   };
 
   return (
     <AuthFormWrapper
-      title="Welcome to MentorAI"
+      title="Welcome Back"
       description="Sign in to access your personalized student dashboard."
     >
-      <div className="space-y-4">
-        <Button
-          variant="outline"
-          className="w-full font-semibold"
-          onClick={handleGoogleSignIn}
-        >
-          <FcGoogle className="mr-2 h-5 w-5" />
-          Sign In with Google
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="m@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+          />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={loading}
+          />
+        </div>
+        <Button type="submit" className="w-full font-semibold" disabled={loading}>
+          {loading ? 'Signing In...' : 'Sign In'}
         </Button>
-        <p className="px-8 text-center text-sm text-muted-foreground">
-          By continuing, you agree to our Terms of Service and Privacy Policy.
-        </p>
-      </div>
+      </form>
+       <p className="mt-4 text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{' '}
+        <Link href="/signup" className="font-semibold text-primary hover:underline">
+          Sign up
+        </Link>
+      </p>
     </AuthFormWrapper>
   );
 }
