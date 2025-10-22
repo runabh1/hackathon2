@@ -7,9 +7,9 @@ import { Mail, CalendarCheck2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc } from 'firebase/firestore';
 
 async function getGoogleAuthUrl(userId: string) {
+    // This API route now securely includes the userId in the 'state' parameter
     const response = await fetch(`/api/auth/google/url?userId=${userId}`);
     if (!response.ok) {
         throw new Error('Failed to get auth URL');
@@ -26,8 +26,7 @@ export function UserStats() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
 
-  // Construct the path only when user and firestore are available
-  const integrationDocPath = user && firestore ? `users/${user.uid}/integrations/gmail` : null;
+  const integrationDocPath = user ? `users/${user.uid}/integrations/gmail` : null;
 
   const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath);
 
@@ -44,7 +43,7 @@ export function UserStats() {
     }
     try {
         const authUrl = await getGoogleAuthUrl(user.uid);
-        // Open in a new tab to avoid iframe security issues and pop-up blockers
+        // Open in a new tab to avoid iframe issues and pop-up blockers
         window.open(authUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
         console.error('Failed to get Google auth URL', error);

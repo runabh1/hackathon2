@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'userId is required' }, { status: 400 });
   }
 
-  // Use a hardcoded localhost redirect URI for local development
+  // This URI MUST EXACTLY match one of the "Authorized redirect URIs" in your Google Cloud Console
   const redirectURI = 'http://localhost:9002/api/auth/google/callback';
 
   const oauth2Client = new google.auth.OAuth2(
@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline', // Important to get a refresh token
     scope: scopes,
-    prompt: 'consent', // Ensures the user sees the consent screen every time
-    state: userId, // Pass the userId in the state parameter
+    prompt: 'consent', // Ensures the user sees the consent screen to get a refresh token every time
+    state: userId, // Pass the userId in the state parameter to link the auth flow to the user
   });
 
   return NextResponse.json({ url });

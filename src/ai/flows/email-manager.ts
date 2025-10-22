@@ -3,101 +3,37 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { google } from 'googleapis';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { getValidAccessToken } from '@/lib/firebase/tokenService';
 
-
-// This helper should only be run on the server (like in a Genkit flow)
-async function getTokensFromFirestore(userId: string): Promise<{ refreshToken: string } | null> {
-    const { firestore } = initializeFirebase();
-    const docRef = doc(firestore, 'users', userId, 'integrations', 'gmail');
-    const docSnap = await getDoc(docRef);
-
-    if (!docSnap.exists() || !docSnap.data()?.refreshToken) {
-        console.log('Refresh token not found for user:', userId);
-        return null;
-    }
-    return { refreshToken: docSnap.data()!.refreshToken };
-}
-
-async function refreshGoogleAccessToken(refreshToken: string): Promise<string> {
-    try {
-        const oauth2Client = new google.auth.OAuth2(
-            process.env.GCP_CLIENT_ID,
-            process.env.GCP_CLIENT_SECRET,
-            // Use the same hardcoded redirect URI
-            'http://localhost:9002/api/auth/google/callback'
-        );
-        oauth2Client.setCredentials({ refresh_token: refreshToken });
-        const { credentials } = await oauth2Client.refreshAccessToken();
-        if (!credentials.access_token) {
-            throw new Error("Failed to refresh access token.");
-        }
-        return credentials.access_token;
-    } catch (error) {
-        console.error("Error refreshing Google access token:", error);
-        throw new Error("Could not refresh Google access token. The user may need to re-authenticate.");
-    }
-}
-
+// This Genkit tool is now a pure server-side tool that relies on the tokenService
+// to get a valid token and then interacts with the Gmail API.
 
 export const emailManagerTool = ai.defineTool(
     {
         name: 'emailManagerTool',
-        description: 'Manages Gmail integration. It can exchange an authorization code for tokens and store them, or retrieve and summarize the latest unread emails for a user.',
+        description: 'Retrieves and summarizes the latest unread emails for a user. It will handle authentication automatically.',
         inputSchema: z.object({
             userId: z.string().describe('The authenticated Firebase User ID of the student.'),
-            authCode: z.string().optional().describe('An authorization code from Google OAuth flow. If provided, the tool will exchange it for tokens and store them.'),
         }),
         outputSchema: z.string(),
     },
-    async ({ userId, authCode }) => {
-        // SCENARIO 1: Exchange authorization code for tokens
-        if (authCode) {
-            try {
-                 const oauth2Client = new google.auth.OAuth2(
-                    process.env.GCP_CLIENT_ID,
-                    process.env.GCP_CLIENT_SECRET,
-                    'http://localhost:9002/api/auth/google/callback'
-                );
-                const { tokens } = await oauth2Client.getToken(authCode);
-
-                if (tokens.refresh_token && tokens.access_token && tokens.expiry_date) {
-                    const { firestore } = initializeFirebase();
-                    await setDoc(doc(firestore, 'users', userId, 'integrations', 'gmail'), {
-                        accessToken: tokens.access_token,
-                        refreshToken: tokens.refresh_token,
-                        expiresAt: tokens.expiry_date,
-                    }, { merge: true });
-                    return "Successfully linked Gmail account.";
-                } else {
-                     throw new Error('Failed to retrieve the necessary tokens from Google.');
-                }
-            } catch (error: any) {
-                console.error('Error exchanging authorization code:', error);
-                return `Error: Failed to link Gmail account. ${error.message}`;
-            }
-        }
-
-        // SCENARIO 2: Fetch and summarize emails
-        const tokens = await getTokensFromFirestore(userId);
-        if (!tokens) {
-            return "Error: Gmail account not linked. The user needs to link their account first.";
-        }
-
+    async ({ userId }) => {
         try {
-            const accessToken = await refreshGoogleAccessToken(tokens.refreshToken);
+            // 1. Get a valid access token (handles refresh automatically)
+            const accessToken = await getValidAccessToken(userId);
 
+            // 2. Set up the Gmail API client
             const gmail = google.gmail({ version: 'v1' });
             const oauth2Client = new google.auth.OAuth2();
             oauth2Client.setCredentials({ access_token: accessToken });
             
             google.options({ auth: oauth2Client });
 
+            // 3. Fetch unread messages
             const res = await gmail.users.messages.list({
                 userId: 'me',
                 q: 'is:unread',
-                maxResults: 5,
+                maxResults: 5, // Limit to 5 for a concise summary
             });
 
             const messages = res.data.messages || [];
@@ -105,27 +41,33 @@ export const emailManagerTool = ai.defineTool(
                 return "No unread emails found.";
             }
 
+            // 4. Fetch details for each message
             const emailPromises = messages.map(async (message) => {
+                if (!message.id) return null;
                 const msg = await gmail.users.messages.get({
                     userId: 'me',
-                    id: message.id!,
+                    id: message.id,
                     format: 'metadata',
                     metadataHeaders: ['Subject', 'From'],
                 });
                 const subject = msg.data.payload?.headers?.find(h => h.name === 'Subject')?.value || 'No Subject';
                 const from = msg.data.payload?.headers?.find(h => h.name === 'From')?.value || 'Unknown Sender';
-                return `From: ${from}\nSubject: ${subject}\nSnippet: ${msg.data.snippet}\n---`;
+                return `From: ${from}\nSubject: ${subject}\nSnippet: ${msg.data.snippet || ''}`;
             });
 
-            const emailDetails = await Promise.all(emailPromises);
-            return `Unread Email Summary:\n${emailDetails.join('\n')}`;
+            const emailDetails = (await Promise.all(emailPromises)).filter(Boolean);
+            
+            if (emailDetails.length === 0) {
+                return "Could not retrieve details for unread emails.";
+            }
+
+            // 5. Format the output for the LLM
+            return `Here is a summary of your unread emails:\n\n${emailDetails.join('\n---\n')}`;
 
         } catch (error: any) {
-            console.error('Error fetching emails:', error);
-            if (error.response?.data?.error === 'invalid_grant') {
-                 return "Error: Gmail token is invalid or has been revoked. Please re-link your account.";
-            }
-            return 'Error: Could not retrieve emails. There might be an issue with the connection.';
+            console.error('Error in emailManagerTool:', error);
+            // Return a user-friendly error message to the LLM
+            return `Error: ${error.message || 'Could not retrieve emails. Please ensure your account is linked and permissions are granted.'}`;
         }
     }
 );

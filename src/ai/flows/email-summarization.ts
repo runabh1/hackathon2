@@ -26,7 +26,6 @@ export async function summarizeUnreadEmails(input: SummarizeUnreadEmailsInput): 
   return summarizeEmailsFlow(input);
 }
 
-
 const summarizeEmailsFlow = ai.defineFlow(
   {
     name: 'summarizeEmailsFlow',
@@ -36,44 +35,19 @@ const summarizeEmailsFlow = ai.defineFlow(
   async ({ userId }) => {
     
     // Call the LLM, providing the emailManagerTool. 
-    // The LLM will decide to call the tool if it deems it necessary based on the prompt.
-    // We pass the `userId` so the tool can use it.
+    // The LLM will decide to call the tool if it deems it necessary.
+    // The tool has the userId and will handle fetching the token and emails.
     const llmResponse = await ai.generate({
-      prompt: `Based on the user's unread emails, provide a concise summary. If there are errors or no emails, state that clearly.`,
+      prompt: `Please summarize the user's latest unread emails. If there are no emails, state that. If there's an error, report the error message clearly.`,
       tools: [emailManagerTool],
-      // The tool needs the userId, so we provide it here.
-      // The LLM will pass this to the tool when it calls it.
       toolConfig: {
+        // Pass the userId to the tool when the LLM decides to call it.
         emailManagerTool: { userId }
       }
     });
 
-    const toolOutput = llmResponse.text();
+    const summaryText = llmResponse.text();
 
-    // Check if the tool was called and produced output.
-    if (toolOutput) {
-      if (toolOutput.startsWith('Error:')) {
-        return { summary: toolOutput };
-      }
-       // If the tool ran successfully, we can create a summary from its output.
-      const finalSummary = llmResponse.text();
-      return { summary: finalSummary };
-    }
-
-    // Fallback response
-    return { summary: 'I was unable to retrieve your emails at this time. Please ensure your Gmail account is linked and try again.' };
-  }
-);
-
-
-const summarizeUnreadEmailsFlow = ai.defineFlow(
-  {
-    name: 'summarizeUnreadEmailsFlow',
-    inputSchema: SummarizeUnreadEmailsInputSchema,
-    outputSchema: SummarizeUnreadEmailsOutputSchema,
-  },
-  async (input) => {
-    // This outer flow now simply calls the properly configured inner flow.
-    return summarizeEmailsFlow(input);
+    return { summary: summaryText };
   }
 );

@@ -9,7 +9,10 @@ import {
   DocumentData,
   Firestore,
   WithFieldValue,
+  serverTimestamp
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export interface Subject extends DocumentData {
   id: string;
@@ -21,34 +24,50 @@ export interface Subject extends DocumentData {
 
 const SUBJECTS_COLLECTION = 'subjects';
 
-export async function addSubject(firestore: Firestore, subject: WithFieldValue<Omit<Subject, 'id'>>) {
-  try {
-    await addDoc(collection(firestore, SUBJECTS_COLLECTION), subject);
-  } catch (e) {
-    console.error('Error adding document: ', e);
-  }
+export function addSubject(firestore: Firestore, subject: WithFieldValue<Omit<Subject, 'id'>>) {
+  const subjectWithTimestamp = {
+    ...subject,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  addDoc(collection(firestore, SUBJECTS_COLLECTION), subjectWithTimestamp)
+  .catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: SUBJECTS_COLLECTION,
+        operation: 'create',
+        requestResourceData: subjectWithTimestamp,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
 }
 
-export async function updateSubjectCount(
+export function updateSubjectCount(
   firestore: Firestore,
   subjectId: string,
   field: 'attended' | 'missed',
   count: number
 ) {
   const subjectRef = doc(firestore, SUBJECTS_COLLECTION, subjectId);
-  try {
-    await updateDoc(subjectRef, {
-      [field]: count,
+  const updateData = { [field]: count, updatedAt: serverTimestamp() };
+  updateDoc(subjectRef, updateData)
+  .catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: subjectRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
     });
-  } catch (e) {
-    console.error('Error updating document: ', e);
-  }
 }
 
-export async function removeSubject(firestore: Firestore, subjectId: string) {
-  try {
-    await deleteDoc(doc(firestore, SUBJECTS_COLLECTION, subjectId));
-  } catch (e) {
-    console.error('Error deleting document: ', e);
-  }
+export function removeSubject(firestore: Firestore, subjectId: string) {
+  const subjectRef = doc(firestore, SUBJECTS_COLLECTION, subjectId);
+  deleteDoc(subjectRef)
+  .catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: subjectRef.path,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
 }
