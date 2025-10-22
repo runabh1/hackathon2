@@ -6,5 +6,4 @@ import '@/ai/flows/attendance-update.ts';
 import '@/ai/flows/study-guide-flow.ts';
 import '@/ai/flows/learning-recommendation-flow.ts';
 import '@/ai/flows/career-insights-flow.ts';
-import '@/ai/flows/index-material-flow.ts';
 import '@/ai/flows/study-guide-rag-flow.ts';

@@ -44,36 +44,29 @@
       },
       "required": ["accessToken", "refreshToken", "expiresAt"]
     },
-    "StudyMaterialChunk": {
-      "title": "Study Material Chunk",
-      "description": "A chunk of text from a study document, with its vector embedding.",
-      "type": "object",
-      "properties": {
-        "chunk_text": {
-          "type": "string",
-          "description": "The text content of the chunk."
+    "StudyMaterial": {
+        "title": "Study Material",
+        "description": "Represents an uploaded study document.",
+        "type": "object",
+        "properties": {
+            "fileName": {
+                "type": "string",
+                "description": "The name of the uploaded file."
+            },
+            "downloadUrl": {
+                "type": "string",
+                "description": "The public URL to download the file from Firebase Storage."
+            },
+            "courseId": {
+                "type": "string",
+                "description": "The ID of the course this material belongs to."
+            },
+            "userId": {
+                "type": "string",
+                "description": "The ID of the user who uploaded this material."
+            }
         },
-        "vector_embedding": {
-          "type": "array",
-          "items": {
-            "type": "number"
-          },
-          "description": "The vector embedding of the chunk text."
-        },
-        "source_url": {
-          "type": "string",
-          "description": "The URL or filename of the original document."
-        },
-        "course_id": {
-          "type": "string",
-          "description": "The ID of the course this material belongs to."
-        },
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user who owns this material."
-        }
-      },
-      "required": ["chunk_text", "vector_embedding", "source_url", "course_id", "userId"]
+        "required": ["fileName", "downloadUrl", "courseId", "userId"]
     }
   },
   "auth": {
@@ -92,11 +85,11 @@
       },
       "description": "Stores third-party integration credentials for a user."
     },
-    "/study_material_vectors/{chunkId}": {
-      "schema": {
-        "$ref": "#/entities/StudyMaterialChunk"
-      },
-      "description": "Stores indexed chunks of study materials for RAG."
+    "/study_materials/{materialId}": {
+        "schema": {
+            "$ref": "#/entities/StudyMaterial"
+        },
+        "description": "Stores references to uploaded study materials."
     }
   }
 }

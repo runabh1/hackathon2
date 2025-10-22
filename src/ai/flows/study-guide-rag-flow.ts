@@ -80,15 +80,3 @@ const studyGuideRAGFlow = ai.defineFlow(
     };
   }
 );
-
-// Helper function to create an embedding for a query string.
-// This is needed by the API route to find similar chunks.
-export function createQueryEmbedding(text: string): number[] {
-    const embedding = Array(128).fill(0);
-    for (let i = 0; i < text.length; i++) {
-        embedding[i % 128] += text.charCodeAt(i);
-    }
-    const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    if (norm === 0) return embedding;
-    return embedding.map(val => val / norm);
-}
