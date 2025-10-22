@@ -34,6 +34,7 @@ Generate a summary of the latest trends, in-demand skills, and potential career 
 
 Structure your response in clear, easy-to-digest sections.
 `,
+  model: 'gemini-1.5-flash-latest',
 });
 
 const careerInsightsFlow = ai.defineFlow(
@@ -43,10 +44,7 @@ const careerInsightsFlow = ai.defineFlow(
     outputSchema: CareerInsightsOutputSchema,
   },
   async input => {
-    const {output} = await ai.generate({
-        model: 'gemini-1.5-flash-latest',
-        prompt: await prompt.render(input),
-    });
+    const {output} = await prompt(input);
     return output!;
   }
 );

@@ -44,6 +44,8 @@ const ragPrompt = ai.definePrompt(
       "{{query}}"
   
       Based on the context above, answer the user's question. If the context does not contain the answer, state that you cannot answer based on the provided materials. Do not use any outside knowledge.`,
+      model: 'gemini-1.5-flash-latest',
+      config: { temperature: 0.1 },
     },
 );
 
@@ -67,13 +69,7 @@ const studyGuideRAGFlow = ai.defineFlow(
     }
 
     // Call the LLM with the augmented prompt
-    const llmResponse = await ai.generate({
-        model: 'gemini-1.5-flash-latest',
-        prompt: await ragPrompt.render(input),
-        config: { temperature: 0.1 },
-    });
-    
-    const output = llmResponse.output();
+    const { output } = await ragPrompt(input);
 
     if (!output) {
         throw new Error("Failed to get a response from the AI model.");

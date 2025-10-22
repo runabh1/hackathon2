@@ -36,6 +36,7 @@ For the topic "{{{topic}}}", please provide a list of learning resources. Includ
 
 Format the output clearly with headings for each resource type.
 `,
+  model: 'gemini-1.5-flash-latest',
 });
 
 const learningRecommendationFlow = ai.defineFlow(
@@ -45,10 +46,7 @@ const learningRecommendationFlow = ai.defineFlow(
     outputSchema: LearningRecommendationOutputSchema,
   },
   async input => {
-    const {output} = await ai.generate({
-        model: 'gemini-1.5-flash-latest',
-        prompt: await prompt.render(input),
-    });
+    const {output} = await prompt(input);
     return output!;
   }
 );
