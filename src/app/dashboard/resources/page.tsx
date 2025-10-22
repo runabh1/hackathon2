@@ -23,7 +23,7 @@ export default function ResourcesPage() {
   // State for the PDF upload form
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfCourseId, setPdfCourseId] = useState('');
-  const [isPdfLoading, setIsLoadingPdf] = useState(false);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
@@ -89,7 +89,7 @@ export default function ResourcesPage() {
       });
       return;
     }
-    setIsLoadingPdf(true);
+    setIsPdfLoading(true);
 
     const formData = new FormData();
     formData.append('file', pdfFile);
@@ -120,7 +120,7 @@ export default function ResourcesPage() {
         description: error.message || 'An unexpected error occurred.',
       });
     } finally {
-      setIsLoadingPdf(false);
+      setIsPdfLoading(false);
     }
   };
 
