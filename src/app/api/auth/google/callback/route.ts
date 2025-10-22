@@ -8,7 +8,11 @@ import { cookies } from 'next/headers';
 // Initialize Firebase Admin SDK if not already initialized
 if (!getApps().length) {
   try {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountString) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+    }
+    const serviceAccount = JSON.parse(serviceAccountString);
     initializeApp({
       credential: cert(serviceAccount),
     });
@@ -23,7 +27,7 @@ if (!getApps().length) {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams, host, protocol } = new URL(req.url);
+  const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state'); // The state should contain the userId
 
@@ -36,12 +40,15 @@ export async function GET(req: NextRequest) {
   }
   
   const userId = state; // The user ID is passed in the state
+  
+  // Use a hardcoded localhost redirect URI for local development
+  const redirectURI = 'http://localhost:9002/api/auth/google/callback';
 
   try {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GCP_CLIENT_ID,
       process.env.GCP_CLIENT_SECRET,
-      `${protocol}//${host}/api/auth/google/callback` // Use dynamic redirect URI
+      redirectURI
     );
 
     const { tokens } = await oauth2Client.getToken(code);
@@ -70,13 +77,41 @@ export async function GET(req: NextRequest) {
         throw new Error('Failed to retrieve necessary tokens from Google.');
     }
     
-    // Redirect user back to the dashboard.
-    const redirectUrl = `${protocol}//${host}/dashboard?gmail_linked=true`;
-    return NextResponse.redirect(redirectUrl);
+    // Create a simple HTML page that closes the tab
+    const html = `
+      <html>
+        <head>
+          <script>
+            window.close();
+          </script>
+        </head>
+        <body>
+          <p>Authentication successful! You can now close this tab.</p>
+        </body>
+      </html>
+    `;
+    
+    return new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    });
 
   } catch (error: any) {
     console.error('Error exchanging authorization code:', error.message);
-    const redirectUrl = `${protocol}//${host}/dashboard?error=auth_failed`;
-    return NextResponse.redirect(redirectUrl);
+    const html = `
+      <html>
+        <body>
+          <h2>Authentication Failed</h2>
+          <p>Something went wrong. Please close this tab and try again.</p>
+          <p>Error: ${error.message}</p>
+        </body>
+      </html>
+    `;
+     return new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    });
   }
 }

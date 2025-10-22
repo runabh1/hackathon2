@@ -3,17 +3,20 @@ import { google } from 'googleapis';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
-  const { searchParams, host, protocol } = new URL(req.url);
+  const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
 
   if (!userId) {
     return NextResponse.json({ error: 'userId is required' }, { status: 400 });
   }
 
+  // Use a hardcoded localhost redirect URI for local development
+  const redirectURI = 'http://localhost:9002/api/auth/google/callback';
+
   const oauth2Client = new google.auth.OAuth2(
     process.env.GCP_CLIENT_ID,
     process.env.GCP_CLIENT_SECRET,
-    `${protocol}//${host}/api/auth/google/callback`
+    redirectURI
   );
 
   const scopes = [
