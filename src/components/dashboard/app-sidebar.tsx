@@ -8,7 +8,6 @@ import {
   Home,
   CalendarCheck,
 } from 'lucide-react';
-import { useMockAuth } from '@/hooks/use-mock-auth';
 import {
   Sidebar,
   SidebarContent,
@@ -24,10 +23,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/logo';
 import { UserStats } from '@/components/dashboard/user-stats';
 import { usePathname } from 'next/navigation';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 export function AppSidebar() {
-  const { user, loading, logout } = useMockAuth();
+  const { user, loading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    router.push('/login');
+  };
 
   if (loading) {
     return (
@@ -47,6 +57,11 @@ export function AppSidebar() {
   if (!user) {
     return null; // Or a redirect component, though the hook handles redirection
   }
+  
+  const userName = user.displayName || 'User';
+  const userEmail = user.email || 'No email';
+  const userAvatar = user.photoURL || '';
+
 
   return (
     <Sidebar>
@@ -88,15 +103,15 @@ export function AppSidebar() {
       <SidebarFooter>
         <div className="flex items-center gap-3 p-2">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.avatarUrl} alt={user.name} />
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={userAvatar} alt={userName} />
+            <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex-1 overflow-hidden">
-            <p className="truncate font-semibold text-sm">{user.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            <p className="truncate font-semibold text-sm">{userName}</p>
+            <p className="truncate text-xs text-muted-foreground">{userEmail}</p>
           </div>
           <SidebarMenuButton
-            onClick={logout}
+            onClick={handleLogout}
             className="h-9 w-9 p-0 ml-auto flex-shrink-0"
             variant="ghost"
             tooltip={{children: 'Log Out', side: 'right'}}

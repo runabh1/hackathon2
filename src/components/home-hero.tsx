@@ -2,8 +2,15 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useUser } from '@/firebase';
 
 export function HomeHero() {
+  const { user, loading } = useUser();
+
+  if (loading) {
+    return null;
+  }
+
   return (
     <main className="flex-grow flex items-center bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 z-10">
@@ -17,12 +24,20 @@ export function HomeHero() {
             Your personal AI-powered guide for exam prep, email management, and attendance tracking. Supercharge your student life.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-4">
-            <Button asChild size="lg" className="font-semibold">
-              <Link href="/signup">Get Started for Free</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="font-semibold">
-              <Link href="/login">I have an account</Link>
-            </Button>
+             {user ? (
+                <Button asChild size="lg" className="font-semibold">
+                  <Link href="/dashboard">Go to Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button asChild size="lg" className="font-semibold">
+                    <Link href="/signup">Get Started for Free</Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline" className="font-semibold">
+                    <Link href="/login">I have an account</Link>
+                  </Button>
+                </>
+              )}
           </div>
         </div>
       </div>

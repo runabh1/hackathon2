@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Loader2, BrainCircuit } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMockAuth } from '@/hooks/use-mock-auth';
+import { useUser } from '@/firebase';
 import { generateContextAwareStudyGuide } from '@/ai/flows/study-guide-flow';
 import { summarizeUnreadEmails } from '@/ai/flows/email-summarization';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
@@ -26,7 +26,7 @@ const initialMessage: Message = {
 };
 
 export function ChatInterface() {
-  const { user } = useMockAuth();
+  const { user } = useUser();
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -68,7 +68,7 @@ export function ChatInterface() {
         assistantContent = (response as { summary: string }).summary;
       } else if (lowercasedInput.includes('attendance') || lowercasedInput.includes('present')) {
         response = await updateAttendanceRecord({
-          studentId: user?.email || 'unknown',
+          studentId: user?.uid || 'unknown',
           date: new Date().toISOString().split('T')[0],
           isPresent: true,
         });
@@ -101,6 +101,9 @@ export function ChatInterface() {
       setIsLoading(false);
     }
   };
+  
+  const userName = user?.displayName || 'User';
+  const userAvatar = user?.photoURL || '';
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -133,8 +136,8 @@ export function ChatInterface() {
               </div>
               {message.role === 'user' && user && (
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
-                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={userAvatar} alt={userName} />
+                  <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
                 </Avatar>
               )}
             </div>

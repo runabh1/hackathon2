@@ -1,19 +1,42 @@
-import { AuthFormWrapper } from '@/components/auth/auth-form-wrapper';
-import { SignupForm } from '@/components/auth/signup-form';
-import type { Metadata } from 'next';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Sign Up | MentorAI',
-  description: 'Create a new MentorAI account.',
-};
+import { AuthFormWrapper } from '@/components/auth/auth-form-wrapper';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/firebase';
+import { GoogleAuthProvider, signInWithRedirect } from 'firebase/auth';
+import { FcGoogle } from 'react-icons/fc';
 
 export default function SignupPage() {
+  const auth = useAuth();
+
+  const handleGoogleSignUp = async () => {
+    if (!auth) return;
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithRedirect(auth, provider);
+    } catch (error) {
+      console.error('Error during sign-up:', error);
+    }
+  };
+
   return (
     <AuthFormWrapper
       title="Create an Account"
       description="Start your journey to academic success today."
     >
-      <SignupForm />
+      <div className="space-y-4">
+        <Button
+          variant="outline"
+          className="w-full font-semibold"
+          onClick={handleGoogleSignUp}
+        >
+          <FcGoogle className="mr-2 h-5 w-5" />
+          Sign Up with Google
+        </Button>
+         <p className="px-8 text-center text-sm text-muted-foreground">
+          By continuing, you agree to our Terms of Service and Privacy Policy.
+        </p>
+      </div>
     </AuthFormWrapper>
   );
 }
