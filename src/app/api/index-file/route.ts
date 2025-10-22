@@ -46,6 +46,14 @@ export async function POST(req: NextRequest) {
       userId,
     });
 
+    if (!vectors || vectors.length === 0) {
+        console.warn(`No vectors were generated for course ${courseId}. This might be an issue with the chunking or embedding process.`);
+        return NextResponse.json({
+            success: true,
+            message: `File processed, but no content was indexed. The document might be empty or too short.`
+        });
+    }
+
     // Save the vectors to Firestore using the Admin SDK
     const db = getAdminDb();
     const batch = db.batch();

@@ -61,7 +61,7 @@ const indexMaterialFlow = ai.defineFlow(
     
     // 2. Embed the chunks
     const embeddings = await ai.embed({
-      content: chunks,
+      content: chunks.map(c => c.text),
     });
 
     // 3. Combine chunks with their embeddings and metadata
