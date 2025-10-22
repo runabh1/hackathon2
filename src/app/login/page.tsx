@@ -24,14 +24,16 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // The useUser hook will handle redirection on successful login
+      // The useUser hook will handle redirection on successful login.
+      // We don't need to set loading to false here because the page will redirect.
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
         description: error.message || 'An unexpected error occurred.',
       });
-      setLoading(false);
+    } finally {
+        setLoading(false);
     }
   };
 
