@@ -4,13 +4,18 @@ import { useState, useEffect } from 'react';
 import { doc, onSnapshot, type DocumentData } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 
-export const useDoc = <T extends DocumentData>(path: string) => {
+export const useDoc = <T extends DocumentData>(path: string | null) => {
   const firestore = useFirestore();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore) return;
+    // Do not proceed if firestore is not available or if the path is invalid/empty.
+    if (!firestore || !path) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
 
     const docRef = doc(firestore, path);
 

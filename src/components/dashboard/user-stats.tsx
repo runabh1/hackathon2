@@ -7,7 +7,6 @@ import { Mail, CalendarCheck2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { updateAttendanceRecord } from '@/ai/flows/attendance-update';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, getDoc, collection } from 'firebase/firestore';
 
 async function getGoogleAuthUrl() {
     const response = await fetch('/api/auth/google/url');
@@ -24,21 +23,13 @@ export function UserStats() {
   const firestore = useFirestore();
 
   const integrationDocPath = useMemo(() => {
-    if (!user) return null;
+    if (!user || !firestore) return null;
     return `users/${user.uid}/integrations/gmail`;
-  }, [user]);
+  }, [user, firestore]);
 
-  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath || '');
+  const { data: gmailIntegration, loading: loadingIntegration } = useDoc(integrationDocPath);
 
-  useEffect(() => {
-    // This check is important because useDoc will return data for an empty path
-    // if not handled carefully.
-    if (!integrationDocPath) {
-      return;
-    }
-  }, [integrationDocPath]);
-
-  const isGmailLinked = gmailIntegration && gmailIntegration.refreshToken;
+  const isGmailLinked = !!(gmailIntegration && gmailIntegration.refreshToken);
 
   const handleLinkGmail = async () => {
     try {
@@ -94,7 +85,9 @@ export function UserStats() {
             <Mail className="w-5 h-5 text-primary" />
             <span className="font-medium text-sm">Unread Emails</span>
           </div>
-          {isGmailLinked ? (
+          {loadingIntegration ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isGmailLinked ? (
             <div className="font-bold text-lg text-primary">{unreadEmails}</div>
           ) : (
              <Button onClick={handleLinkGmail} size="sm" variant="ghost" className="h-7 text-xs">
