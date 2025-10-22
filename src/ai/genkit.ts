@@ -23,4 +23,4 @@ export const ai = genkit({
 });
 
 // For backward compatibility if any old constants were imported elsewhere.
-export const KOMPACT_AI_MODEL_ID = LLAMA_2_7B_MODEL_ID;
+export const KOMPACT_AI_MODEL_ID = 'meta-llama/Llama-2-7b-chat-hf';
