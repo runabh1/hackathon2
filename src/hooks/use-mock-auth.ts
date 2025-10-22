@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 export type MockUser = {
+  uid: string;
   email: string;
   name: string;
   avatarUrl: string;
@@ -34,7 +35,9 @@ export function useMockAuth() {
 
   const login = useCallback((email: string) => {
     const name = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const mockUser: MockUser = { email, name, avatarUrl: "https://picsum.photos/seed/user1/100/100" };
+    // Simple consistent UID for mock purposes
+    const uid = `mock-uid-${email}`;
+    const mockUser: MockUser = { uid, email, name, avatarUrl: `https://i.pravatar.cc/150?u=${email}` };
     localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(mockUser));
     setUser(mockUser);
     router.push('/dashboard');

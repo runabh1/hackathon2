@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Subject": {
+      "title": "Subject",
+      "description": "Represents a single academic subject for attendance tracking.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the subject."
+        },
+        "attended": {
+          "type": "number",
+          "description": "The number of classes attended."
+        },
+        "missed": {
+          "type": "number",
+          "description": "The number of classes missed."
+        },
+        "userId": {
+            "type": "string",
+            "description": "The ID of the user who owns this subject."
+        }
+      },
+      "required": ["name", "attended", "missed", "userId"]
+    }
+  },
+  "auth": {
+    "providers": ["anonymous"]
+  },
+  "firestore": {
+    "/subjects/{subjectId}": {
+      "schema": {
+        "$ref": "#/entities/Subject"
+      },
+      "description": "Stores the attendance tracking subjects for all users."
+    }
+  }
+}
