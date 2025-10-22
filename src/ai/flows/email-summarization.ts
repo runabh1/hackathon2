@@ -46,7 +46,7 @@ const summarizeEmailsFlow = ai.defineFlow(
       }
     });
 
-    const summaryText = llmResponse.text();
+    const summaryText = llmResponse.text;
 
     return { summary: summaryText };
   }
