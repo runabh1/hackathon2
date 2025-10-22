@@ -7,15 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookUp, File, Trash2, Download } from 'lucide-react';
-import { useUser, useFirestore, useCollection } from '@/firebase';
+import { useUser, useFirestore, useCollection, useStorage } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { addMaterial, removeMaterial, type StudyMaterial } from '@/lib/materials';
 import { Progress } from '@/components/ui/progress';
 
 export default function ResourcesPage() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const storage = useStorage();
   const [courseId, setCourseId] = useState('');
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -40,17 +41,16 @@ export default function ResourcesPage() {
 
   const handleUploadMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fileToUpload || !courseId.trim() || !user || !firestore) {
+    if (!fileToUpload || !courseId.trim() || !user || !firestore || !storage) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please select a file and provide a course ID.',
+        description: 'Please select a file, provide a course ID, and ensure you are logged in.',
       });
       return;
     }
     setIsUploading(true);
 
-    const storage = getStorage();
     // Create a storage reference: `users/{userId}/materials/{fileName}`
     const storageRef = ref(storage, `users/${user.uid}/materials/${fileToUpload.name}`);
     const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
