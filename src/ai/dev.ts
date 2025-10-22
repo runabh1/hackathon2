@@ -1,5 +1,6 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
+import 'dotenv/config';
 
 import '@/ai/flows/email-manager.ts';
 import '@/ai/flows/attendance-update.ts';
