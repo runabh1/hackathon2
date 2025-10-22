@@ -1,10 +1,54 @@
 
 // src/app/api/index-file/route.ts
-import 'dotenv/config'; // Load environment variables
+import 'dotenv/config'; // Ensure environment variables are loaded
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase/tokenService';
+import { initializeApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { indexMaterial } from '@/ai/flows/index-material-flow';
 import pdf from 'pdf-parse';
+
+// --- Firebase Admin Initialization (Self-contained) ---
+// This ensures the Admin SDK is initialized reliably within the API route's environment.
+
+let db: Firestore;
+
+function initializeAdminApp() {
+    const adminAppName = 'file-indexing-admin-app';
+    const existingApp = getApps().find(app => app.name === adminAppName);
+    
+    if (existingApp) {
+        if (!db) {
+            db = getFirestore(existingApp);
+        }
+        return;
+    }
+
+    let serviceAccount: ServiceAccount;
+    try {
+        if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set or empty.');
+        }
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    } catch (e: any) {
+        console.error("FATAL: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e.message);
+        throw new Error("Firebase Admin SDK initialization failed due to invalid service account key.");
+    }
+
+    try {
+        const app = initializeApp({
+            credential: cert(serviceAccount),
+        }, adminAppName);
+        db = getFirestore(app);
+    } catch (e: any) {
+        console.error("FATAL: Failed to initialize Firebase Admin App.", e.message);
+        throw new Error("Firebase Admin SDK could not be initialized.");
+    }
+}
+
+// Ensure the admin app is initialized when the module loads
+initializeAdminApp();
+
+// --- API Configuration ---
 
 // Increase the default body size limit to handle larger file uploads
 export const config = {
@@ -15,32 +59,33 @@ export const config = {
   },
 };
 
+// --- API Handler ---
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { fileContent, fileName, courseId, userId } = body;
 
     if (!fileContent || !fileName || !courseId || !userId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required fields: fileContent, fileName, courseId, userId are required.' }, { status: 400 });
     }
 
-    // Decode the Base64 file content
+    // 1. Extract Text from file
     const buffer = Buffer.from(fileContent, 'base64');
-    
     let textContent = '';
+    
     if (fileName.toLowerCase().endsWith('.pdf')) {
       const data = await pdf(buffer);
       textContent = data.text;
     } else {
-        // Assume it's a plain text file
-        textContent = buffer.toString('utf-8');
+      textContent = buffer.toString('utf-8');
     }
 
-    if (!textContent) {
-        return NextResponse.json({ error: 'Could not extract text from the file.' }, { status: 400 });
+    if (!textContent.trim()) {
+        return NextResponse.json({ error: 'Could not extract any text from the file.' }, { status: 400 });
     }
 
-    // Call the Genkit flow to chunk and embed the text
+    // 2. Call Genkit flow to chunk and embed the text
     const { vectors } = await indexMaterial({
       text: textContent,
       courseId,
@@ -48,15 +93,14 @@ export async function POST(req: NextRequest) {
     });
 
     if (!vectors || vectors.length === 0) {
-        console.warn(`No vectors were generated for course ${courseId}. This might be an issue with the chunking or embedding process.`);
+        console.warn(`No vectors were generated for course ${courseId}. This might mean the document was too short.`);
         return NextResponse.json({
             success: true,
             message: `File processed, but no content was indexed. The document might be empty or too short.`
         });
     }
 
-    // Save the vectors to Firestore using the Admin SDK
-    const db = getAdminDb();
+    // 3. Save the vectors to Firestore using the Admin SDK
     const batch = db.batch();
     const vectorsCollection = db.collection('study_material_vectors');
 
@@ -73,7 +117,8 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error indexing file:', error);
+    console.error('ERROR in /api/index-file:', error);
+    // Return a structured JSON error instead of crashing
     return NextResponse.json({ error: error.message || 'An internal server error occurred.' }, { status: 500 });
   }
 }

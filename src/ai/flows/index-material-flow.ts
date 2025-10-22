@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for chunking and embedding text material.
@@ -50,14 +51,16 @@ const indexMaterialFlow = ai.defineFlow(
         text,
         config: {
             chunking: {
-                // A simple chunking strategy
-                // In a real app, you might choose a more sophisticated method
                 unit: "word",
                 size: 500, 
                 overlap: 50
             }
         }
     });
+
+    if (!chunks || chunks.length === 0) {
+      return { vectors: [] };
+    }
     
     // 2. Embed the chunks
     const embeddings = await ai.embed({

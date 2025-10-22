@@ -1,3 +1,4 @@
+
 // src/lib/firebase/tokenService.ts
 import { initializeApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
@@ -13,7 +14,7 @@ function initializeAdminApp() {
     // Ensure we don't initialize the app more than once
     if (getApps().some(app => app.name === adminAppName)) {
         if (!db) {
-            db = getFirestore(getApps().find(app => app.name === adminAppName));
+            db = getFirestore(getApps().find(app => app.name === adminAppName)!);
         }
         return;
     }
