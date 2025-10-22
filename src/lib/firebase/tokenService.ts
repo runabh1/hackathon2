@@ -8,28 +8,29 @@ import { OAuth2Client } from 'google-auth-library';
 
 let db: Firestore;
 
-function getAdminDb() {
-  if (db) {
-    return db;
-  }
-
-  if (!getApps().length) {
-    let serviceAccount: ServiceAccount;
-    try {
-      if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
-      }
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    } catch (e) {
-      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e);
-      throw new Error("Firebase Admin SDK initialization failed.");
+function initializeAdminApp() {
+    if (!getApps().length) {
+        let serviceAccount: ServiceAccount;
+        try {
+            if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+                throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+            }
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        } catch (e) {
+            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e);
+            throw new Error("Firebase Admin SDK initialization failed.");
+        }
+        initializeApp({
+            credential: cert(serviceAccount),
+        });
     }
-    initializeApp({
-      credential: cert(serviceAccount),
-    });
+    db = getFirestore();
+}
+
+export function getAdminDb() {
+  if (!db) {
+    initializeAdminApp();
   }
-  
-  db = getFirestore();
   return db;
 }
 

@@ -10,6 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getAdminDb } from '@/lib/firebase/tokenService';
+import type { Firestore } from 'firebase-admin/firestore';
 
 // --- Schemas ---
 export const StudyGuideRAGInputSchema = z.object({
@@ -56,7 +57,7 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
  * This is NOT efficient for large datasets but works for a hackathon.
  */
 async function findSimilarChunks(
-  firestore: FirebaseFirestore.Firestore,
+  firestore: Firestore,
   query: string,
   courseId: string,
   userId: string
