@@ -21,6 +21,3 @@ export const ai = genkit({
   ],
   // Flows will explicitly specify the model ID to use.
 });
-
-// For backward compatibility if any old constants were imported elsewhere.
-export const KOMPACT_AI_MODEL_ID = 'meta-llama/Llama-2-7b-chat-hf';
