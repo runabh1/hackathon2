@@ -9,7 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { recommendLearningResources } from './learning-recommendation-flow';
 import { generateCareerInsights } from './career-insights-flow';
 import { getRAGAnswer } from '@/lib/rag';
@@ -89,7 +89,7 @@ export const chat = ai.defineFlow(
     });
 
     const { stream, response } = await ai.generateStream({
-        model: 'gemini-1.5-flash-latest',
+        model: 'googleai/gemini-1.5-flash-latest',
         system: `**ROLE AND PERSONA:**
 You are "The Student Mentor," an AI-Powered Personal Guide, Manager, and Learning Assistant. Your tone is supportive, encouraging, professional, and clear. Your primary goal is to help the user (a student) with academic preparation, resource management, and administrative tasks.
 
