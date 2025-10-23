@@ -87,7 +87,7 @@ export function ChatInterface() {
     const courseId = courseMatch ? courseMatch[1].toUpperCase() : undefined;
 
     try {
-        const stream = runChatFlow({ 
+        const stream = await runChatFlow({ 
             prompt: currentInput, 
             history, 
             userId: user.uid,
