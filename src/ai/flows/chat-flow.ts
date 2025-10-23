@@ -15,7 +15,7 @@ import { z } from 'genkit';
 import { recommendLearningResources } from './learning-recommendation-flow';
 import { generateCareerInsights } from './career-insights-flow';
 import { getRAGAnswer } from '@/lib/rag';
-import { summarizeUnreadEmails } from './email-summarization';
+import { emailManagerTool } from './email-manager';
 
 // Define the schema for a single message in the chat history
 export const ChatMessageSchema = z.object({
@@ -77,22 +77,12 @@ const generateCareerInsightsTool = ai.defineTool(
     async (input) => generateCareerInsights(input)
 );
 
-const summarizeUnreadEmailsTool = ai.defineTool(
-    {
-        name: 'summarizeUnreadEmails',
-        description: "Summarizes the user's latest unread emails.",
-        inputSchema: z.object({ userId: z.string() }),
-        outputSchema: z.object({ summary: z.string() }),
-    },
-    async (input) => summarizeUnreadEmails(input)
-);
-
 
 const tools = [
     getRAGAnswerTool,
     recommendLearningResourcesTool,
     generateCareerInsightsTool,
-    summarizeUnreadEmailsTool,
+    emailManagerTool,
 ];
 
 // The main, streaming chat flow
@@ -108,7 +98,7 @@ export const chat = ai.defineFlow(
     // Determine which tools are available based on the input.
     // This allows us to dynamically pass the userId to the tools that need it.
     const availableTools = tools.map(tool => {
-        if (tool.name === 'summarizeUnreadEmails' || tool.name === 'getStudyGuideAnswer') {
+        if (tool.name === 'emailManagerTool' || tool.name === 'getStudyGuideAnswer') {
             return {
                 ...tool,
                 // Provide the userId directly to the tool's context
@@ -126,7 +116,7 @@ You are "The Student Mentor," an AI-Powered Personal Guide, Manager, and Learnin
 
 **CORE DIRECTIVES:**
 1.  **Prioritize Context (RAG):** If the user's question relates to a specific course, project, or document, you MUST first search for an answer using the getStudyGuideAnswer tool. You must ground your answer ONLY in the facts found within this context to prevent factual errors and hallucinations.
-2.  **Tool/Agent Use (Function Calling):** If the user's request involves managing external systems (like email, calendars, or attendance), you MUST use the available external functions/tools (e.g., \`summarizeUnreadEmails\`). Do not attempt to answer operational questions without calling the relevant tool first.
+2.  **Tool/Agent Use (Function Calling):** If the user's request involves managing external systems (like email, calendars, or attendance), you MUST use the available external functions/tools (e.g., \`emailManagerTool\`). Do not attempt to answer operational questions without calling the relevant tool first.
 3.  **Resource Recommendation:** For every academic question, always include a suggestion for further learning by calling the \`recommendLearningResources\` tool.
 4.  **Formatting:** Always use Markdown for clear readability, including bullet points for summaries, bolding for key terms, and section headers.
 
