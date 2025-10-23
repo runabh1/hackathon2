@@ -61,7 +61,7 @@ const studyGuideRAGFlow = ai.defineFlow(
     }
 
     // Call the LLM with the augmented prompt
-    const { output } = await ragPrompt(input, { model: 'googleai/gemini-1.5-pro' });
+    const { output } = await ragPrompt(input, { model: 'googleai/gemini-1.5-flash' });
 
     if (!output) {
         throw new Error("Failed to get a response from the AI model.");
