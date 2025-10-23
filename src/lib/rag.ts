@@ -1,8 +1,8 @@
 // src/lib/rag.ts
-import 'dotenv/config';
-import { getAdminDb } from '@/lib/firebase/admin';
-import { ai } from '@/ai/genkit';
 import { studyGuideRAG } from '@/ai/flows/study-guide-rag-flow';
+import { ai } from '@/ai/genkit';
+import { getAdminDb } from '@/lib/firebase/admin';
+import 'dotenv/config';
 
 /**
  * Calculates the dot product of two vectors.
@@ -52,34 +52,38 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 export async function findSimilarDocuments(query: string, courseId: string, userId: string): Promise<string[]> {
   try {
     const db = getAdminDb();
-    
+
     // 1. Embed the user's query
-    const [queryEmbedding] = await ai.embed({
-      content: [query],
-    });
+    // genkit embed API is typed strictly; cast to any to call with minimal args.
+    // @ts-ignore
+    const embedResult: any = await (ai as any).embed({ content: [query] });
+    const queryEmbedding: number[] = Array.isArray(embedResult?.[0])
+      ? embedResult[0]
+      : embedResult?.[0]?.embedding ?? embedResult?.[0];
 
     // 2. Fetch all vectors for the given course and user
     const vectorsSnapshot = await db.collection('study_material_vectors')
       .where('courseId', '==', courseId)
       .where('userId', '==', userId)
       .get();
-      
+
     if (vectorsSnapshot.empty) {
       return [];
     }
 
     // 3. Calculate cosine similarity for each document
-    const documents = vectorsSnapshot.docs.map(doc => {
-      const data = doc.data();
+    const documents = vectorsSnapshot.docs.map((doc) => {
+      const data = doc.data() as any;
+      const embedding: number[] = data.embedding?.embedding ?? data.embedding ?? [];
       return {
         text: data.text,
-        similarity: cosineSimilarity(queryEmbedding, data.embedding),
+        similarity: cosineSimilarity(queryEmbedding, embedding),
       };
     });
 
     // 4. Sort by similarity and take the top N results
     const topN = documents.sort((a, b) => b.similarity - a.similarity).slice(0, 3);
-    
+
     // 5. Return just the text content
     return topN.map(doc => doc.text);
 
@@ -102,7 +106,7 @@ export async function getRAGAnswer(query: string, courseId: string, userId: stri
   try {
     // Find relevant context
     const contextChunks = await findSimilarDocuments(query, courseId, userId);
-    
+
     // If no context is found, return a specific message.
     if (contextChunks.length === 0) {
         return {
@@ -116,10 +120,10 @@ export async function getRAGAnswer(query: string, courseId: string, userId: stri
       query,
       context: contextChunks,
     });
-    
+
     // The sources are the chunks of text we provided as context
     const sources = contextChunks.map(chunk => chunk.substring(0, 100) + '...');
-    
+
     return {
       answer: ragResult.answer,
       sources,

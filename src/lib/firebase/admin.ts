@@ -1,6 +1,6 @@
 // src/lib/firebase/admin.ts
 import 'dotenv/config'; // Ensure env vars are loaded
-import { initializeApp, getApps, cert, type App, type ServiceAccount } from 'firebase-admin/app';
+import { cert, getApps, initializeApp, type App, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 // Define a type for our singleton cache
@@ -9,28 +9,35 @@ interface FirebaseAdminSingleton {
   db: Firestore;
 }
 
-// Use a global symbol to store the singleton instance to avoid issues with module caching in serverless environments.
-const FB_ADMIN_SINGLETON_KEY = Symbol.for('firebase.admin.singleton');
+// Use a string key on globalThis to store the singleton instance to avoid
+// issues with module caching in serverless environments.
+const FB_ADMIN_SINGLETON_KEY = '__firebase_admin_singleton__';
 
-// Extend the NodeJS.Global interface to declare our symbol
+// Extend the NodeJS.Global interface to declare our key
 declare global {
-  var [FB_ADMIN_SINGLETON_KEY]: FirebaseAdminSingleton | undefined;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  var __firebase_admin_singleton__:
+    | FirebaseAdminSingleton
+    | undefined;
 }
 
 function initializeAdminApp(): FirebaseAdminSingleton {
   // If the singleton is already cached, return it.
-  if (global[FB_ADMIN_SINGLETON_KEY]) {
-    return global[FB_ADMIN_SINGLETON_KEY]!;
+  // @ts-ignore
+  if (globalThis[FB_ADMIN_SINGLETON_KEY]) {
+    // @ts-ignore
+    return globalThis[FB_ADMIN_SINGLETON_KEY]!;
   }
-  
+
   const existingApps = getApps();
   if (existingApps.length > 0) {
-      // This case might happen in some environments, though less likely with the global symbol approach.
-      const app = existingApps[0];
-      const db = getFirestore(app);
-      const singleton = { app, db };
-      global[FB_ADMIN_SINGLETON_KEY] = singleton;
-      return singleton;
+    // This case might happen in some environments, though less likely with the global symbol approach.
+    const app = existingApps[0];
+    const db = getFirestore(app);
+    const singleton = { app, db };
+    // @ts-ignore
+    globalThis[FB_ADMIN_SINGLETON_KEY] = singleton;
+    return singleton;
   }
 
   // This block will only run ONCE per cold start.
@@ -52,10 +59,11 @@ function initializeAdminApp(): FirebaseAdminSingleton {
     });
     const db = getFirestore(app);
     const singleton: FirebaseAdminSingleton = { app, db };
-    
-    // Cache the singleton instance globally.
-    global[FB_ADMIN_SINGLETON_KEY] = singleton;
-    return singleton;
+
+  // Cache the singleton instance globally.
+  // @ts-ignore
+  globalThis[FB_ADMIN_SINGLETON_KEY] = singleton;
+  return singleton;
 
   } catch (e: any) {
     console.error("FATAL: Failed to initialize Firebase Admin App.", e.message);

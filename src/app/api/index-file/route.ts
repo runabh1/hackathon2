@@ -1,8 +1,8 @@
 
 // src/app/api/index-file/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase/admin'; // Use the new admin singleton
 import { indexMaterial } from '@/ai/flows/index-material-flow';
+import { getAdminDb } from '@/lib/firebase/admin'; // Use the new admin singleton
+import { NextRequest, NextResponse } from 'next/server';
 import pdf from 'pdf-parse';
 
 // --- API Configuration ---
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     // 1. Extract Text from file buffer
     const buffer = Buffer.from(fileContent, 'base64');
     let textContent = '';
-    
+
     if (fileName.toLowerCase().endsWith('.pdf')) {
       const data = await pdf(buffer); // Correctly await the promise
       textContent = data.text;
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Call Genkit flow to chunk and embed the text
-    const { vectors }await indexMaterial({
+    const { vectors } = await indexMaterial({
       text: textContent,
       courseId,
       userId,

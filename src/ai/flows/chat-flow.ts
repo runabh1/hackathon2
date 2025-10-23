@@ -9,11 +9,11 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
-import { recommendLearningResources } from './learning-recommendation-flow';
-import { generateCareerInsights } from './career-insights-flow';
 import { getRAGAnswer } from '@/lib/rag';
+import { z } from 'zod';
+import { generateCareerInsights } from './career-insights-flow';
 import { emailManagerTool } from './email-manager';
+import { recommendLearningResources } from './learning-recommendation-flow';
 import {
     ChatInputSchema,
     type ChatInput,
@@ -74,7 +74,7 @@ export const chat = ai.defineFlow(
     streamSchema: z.string(), // What we stream back to the client
   },
   async (input, streamingCallback) => {
-    
+
     // Determine which tools are available based on the input.
     // This allows us to dynamically pass the userId to the tools that need it.
     const availableTools = tools.map(tool => {
@@ -82,13 +82,15 @@ export const chat = ai.defineFlow(
             return {
                 ...tool,
                 // Provide the userId directly to the tool's context
-                context: { userId: input.userId, courseId: input.courseId } 
+                context: { userId: input.userId, courseId: input.courseId }
             };
         }
         return tool;
     });
 
-    const { stream, response } = await ai.generateStream({
+  // The genkit typings are strict; cast to any for flexibility here.
+  // @ts-ignore
+  const { stream, response } = await (ai as any).generateStream({
         model: 'googleai/gemini-1.5-flash',
         system: `**ROLE AND PERSONA:**
 You are "The Student Mentor," an AI-Powered Personal Guide, Manager, and Learning Assistant. Your tone is supportive, encouraging, professional, and clear. Your primary goal is to help the user (a student) with academic preparation, resource management, and administrative tasks.
@@ -111,7 +113,11 @@ You are "The Student Mentor," an AI-Powered Personal Guide, Manager, and Learnin
 `,
         prompt: input.prompt,
         history: input.history as ChatMessage[],
-        tools: availableTools,
+    // genkit expects either tool definitions registered in the registry
+    // or simple tool names. We provide the tool objects directly at runtime,
+    // but the TS types are narrow, so cast to any.
+    // @ts-ignore
+    tools: availableTools,
         toolConfig: {
             // Configure the tool to automatically call the provided functions
             autoToolInference: true,
@@ -124,7 +130,7 @@ You are "The Student Mentor," an AI-Powered Personal Guide, Manager, and Learnin
         streamingCallback(chunk.text);
       }
     }
-    
+
     // Return the final, complete response
     const finalResponse = await response;
     return finalResponse.text ?? '';

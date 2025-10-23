@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { doc, onSnapshot, type DocumentReference, type DocumentData } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { doc, onSnapshot, type DocumentData, type DocumentReference } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
 
 // This hook can now accept either a string path or a DocumentReference
 export const useDoc = <T extends DocumentData>(pathOrRef: string | DocumentReference | null) => {
@@ -25,7 +25,7 @@ export const useDoc = <T extends DocumentData>(pathOrRef: string | DocumentRefer
 
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        setData({ id: docSnap.id, ...docSnap.data() } as T);
+  setData({ id: docSnap.id, ...(docSnap.data() as unknown as object) } as unknown as T);
       } else {
         setData(null);
       }

@@ -46,31 +46,37 @@ const indexMaterialFlow = ai.defineFlow(
     outputSchema: IndexMaterialOutputSchema,
   },
   async ({ text, courseId, userId }) => {
-    // 1. Chunk the document text
-    const chunks = await ai.chunk({
-        text,
-        config: {
-            chunking: {
-                unit: "word",
-                size: 500, 
-                overlap: 50
-            }
-        }
-    });
+    // 1. Chunk the document text (simple, deterministic chunker)
+    function chunkText(text: string, size = 500, overlap = 50) {
+      const words = text.split(/\s+/).filter(Boolean);
+      const chunks: { text: string }[] = [];
+      let i = 0;
+      while (i < words.length) {
+        const slice = words.slice(i, i + size);
+        chunks.push({ text: slice.join(' ') });
+        i += size - overlap;
+      }
+      return chunks;
+    }
+
+    const chunks = chunkText(text, 500, 50);
 
     if (!chunks || chunks.length === 0) {
       return { vectors: [] };
     }
-    
+
     // 2. Embed the chunks
-    const embeddings = await ai.embed({
-      content: chunks.map(c => c.text),
+    // The genkit typings are strict about embedder params. Use a local any-cast
+    // to call the runtime API and accept the returned shape.
+    // @ts-ignore
+    const embeddings: any = await (ai as any).embed({
+      content: chunks.map((c) => c.text),
     });
 
     // 3. Combine chunks with their embeddings and metadata
-    const vectors = chunks.map((chunk, i) => ({
+    const vectors = chunks.map((chunk: { text: string }, i: number) => ({
       text: chunk.text,
-      embedding: embeddings[i],
+      embedding: Array.isArray(embeddings[i]) ? embeddings[i] : embeddings[i]?.embedding ?? embeddings[i],
       courseId,
       userId,
     }));

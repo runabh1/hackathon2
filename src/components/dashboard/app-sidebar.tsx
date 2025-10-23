@@ -1,31 +1,30 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import {
-  LogOut,
-  BookOpen,
-  Home,
-  CalendarCheck,
-} from 'lucide-react';
+import { UserStats } from '@/components/dashboard/user-stats';
+import { Logo } from '@/components/logo';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
+  SidebarMenuItem,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Logo } from '@/components/logo';
-import { UserStats } from '@/components/dashboard/user-stats';
-import { usePathname } from 'next/navigation';
-import { useUser, useAuth } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
+import {
+  BookOpen,
+  CalendarCheck,
+  Home,
+  LogOut,
+} from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import React from 'react';
 
 export function AppSidebar() {
   const { user, loading } = useUser();
@@ -57,7 +56,7 @@ export function AppSidebar() {
   if (!user) {
     return null; // Or a redirect component, though the hook handles redirection
   }
-  
+
   const userName = user.displayName || 'User';
   const userEmail = user.email || 'No email';
   const userAvatar = user.photoURL || '';
@@ -115,7 +114,7 @@ export function AppSidebar() {
           <SidebarMenuButton
             onClick={handleLogout}
             className="h-9 w-9 p-0 ml-auto flex-shrink-0"
-            variant="ghost"
+            variant="outline"
             tooltip={{children: 'Log Out', side: 'right'}}
           >
             <LogOut />
