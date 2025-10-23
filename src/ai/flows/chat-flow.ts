@@ -88,9 +88,8 @@ export const chat = ai.defineFlow(
         return tool;
     });
 
-    const llm = ai.getModel('gemini-1.5-flash-latest');
-    
-    const { stream, response } = await llm.generateStream({
+    const { stream, response } = await ai.generateStream({
+        model: 'gemini-1.5-flash-latest',
         system: `**ROLE AND PERSONA:**
 You are "The Student Mentor," an AI-Powered Personal Guide, Manager, and Learning Assistant. Your tone is supportive, encouraging, professional, and clear. Your primary goal is to help the user (a student) with academic preparation, resource management, and administrative tasks.
 
