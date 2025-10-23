@@ -34,7 +34,6 @@ Generate a summary of the latest trends, in-demand skills, and potential career 
 
 Structure your response in clear, easy-to-digest sections.
 `,
-  model: 'gemini-1.5-flash-latest',
 });
 
 const careerInsightsFlow = ai.defineFlow(
