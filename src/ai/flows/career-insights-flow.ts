@@ -3,22 +3,17 @@
  * @fileOverview An AI agent for providing career insights.
  *
  * - generateCareerInsights - A function that generates insights for a specific career field.
- * - CareerInsightsInput - The input type for the generateCareerInsights function.
- * - CareerInsightsOutput - The return type for the generateCareerInsights function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { 
+    CareerInsightsInputSchema, 
+    CareerInsightsOutputSchema, 
+    type CareerInsightsInput, 
+    type CareerInsightsOutput 
+} from './types';
 
-const CareerInsightsInputSchema = z.object({
-  field: z.string().describe('The career field to get insights for, e.g., "software engineering".'),
-});
-export type CareerInsightsInput = z.infer<typeof CareerInsightsInputSchema>;
-
-const CareerInsightsOutputSchema = z.object({
-  insights: z.string().describe('A summary of current trends, in-demand skills, and potential career paths for the specified field.'),
-});
-export type CareerInsightsOutput = z.infer<typeof CareerInsightsOutputSchema>;
 
 export async function generateCareerInsights(input: CareerInsightsInput): Promise<CareerInsightsOutput> {
   return careerInsightsFlow(input);

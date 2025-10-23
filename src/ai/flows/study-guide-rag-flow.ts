@@ -9,18 +9,12 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { StudyGuideRAGInput, StudyGuideRAGOutput } from './chat-flow';
-
-
-// --- Schemas for internal use, types are imported from chat-flow ---
-const StudyGuideRAGInputSchema = z.object({
-  query: z.string().describe("The student's question."),
-  context: z.array(z.string()).describe("A list of relevant text chunks from study materials.")
-});
-
-const StudyGuideRAGOutputSchema = z.object({
-  answer: z.string().describe('The context-aware answer.'),
-});
+import { 
+    StudyGuideRAGInputSchema, 
+    StudyGuideRAGOutputSchema,
+    type StudyGuideRAGInput, 
+    type StudyGuideRAGOutput 
+} from './types';
 
 
 // --- Main Flow & Exported Function ---

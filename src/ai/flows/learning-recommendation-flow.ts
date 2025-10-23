@@ -3,22 +3,17 @@
  * @fileOverview An AI agent for recommending learning resources.
  *
  * - recommendLearningResources - A function that recommends resources for a given topic.
- * - LearningRecommendationInput - The input for the recommendLearningResources function.
- * - LearningRecommendationOutput - The return type for the recommendLearningResources function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { 
+    LearningRecommendationInputSchema, 
+    LearningRecommendationOutputSchema, 
+    type LearningRecommendationInput, 
+    type LearningRecommendationOutput 
+} from './types';
 
-const LearningRecommendationInputSchema = z.object({
-  topic: z.string().describe('The topic for which to recommend learning resources, e.g., "Quantum Computing".'),
-});
-export type LearningRecommendationInput = z.infer<typeof LearningRecommendationInputSchema>;
-
-const LearningRecommendationOutputSchema = z.object({
-  recommendations: z.string().describe('A formatted list of learning resources including articles, videos, and tutorials.'),
-});
-export type LearningRecommendationOutput = z.infer<typeof LearningRecommendationOutputSchema>;
 
 export async function recommendLearningResources(input: LearningRecommendationInput): Promise<LearningRecommendationOutput> {
   return learningRecommendationFlow(input);

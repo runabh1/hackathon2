@@ -11,3 +11,5 @@ import '@/ai/flows/career-insights-flow.ts';
 import '@/ai/flows/study-guide-rag-flow.ts';
 import '@/ai/flows/index-material-flow.ts';
 import '@/ai/flows/chat-flow.ts';
+// This file can also contain types, but we'll put them in a separate file for clarity.
+import '@/ai/flows/types.ts';

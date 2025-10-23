@@ -6,8 +6,6 @@
  * and using tools to access other capabilities like RAG, email, etc.
  *
  * - chat - A streaming flow for general conversation.
- * - ChatInput - The input type for the chat function.
- * - ChatHistory - The message history type.
  */
 
 import { ai } from '@/ai/genkit';
@@ -16,35 +14,11 @@ import { recommendLearningResources } from './learning-recommendation-flow';
 import { generateCareerInsights } from './career-insights-flow';
 import { getRAGAnswer } from '@/lib/rag';
 import { emailManagerTool } from './email-manager';
-
-// Define the schema for a single message in the chat history
-export const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'model', 'tool']),
-  content: z.array(
-    z.object({
-      text: z.string().optional(),
-      toolRequest: z.any().optional(),
-      toolResponse: z.any().optional(),
-    })
-  ),
-});
-export type ChatMessage = z.infer<typeof ChatMessageSchema>;
-
-// Define the input schema for the main chat flow
-export const ChatInputSchema = z.object({
-  userId: z.string(),
-  courseId: z.string().optional().describe("The course ID if the user's query is course-specific, e.g., 'BIO-101'. The tool should infer this from the conversation."),
-  history: z.array(ChatMessageSchema),
-  prompt: z.string(),
-});
-export type ChatInput = z.infer<typeof ChatInputSchema>;
-
-// Input/Output types for other flows, consolidated here
-// to avoid exporting types from 'use server' files.
-export type { CareerInsightsInput, CareerInsightsOutput } from './career-insights-flow';
-export type { LearningRecommendationInput, LearningRecommendationOutput } from './learning-recommendation-flow';
-export type { StudyGuideRAGInput, StudyGuideRAGOutput } from './study-guide-rag-flow';
-
+import {
+    ChatInputSchema,
+    type ChatInput,
+    type ChatMessage,
+} from './types';
 
 const getRAGAnswerTool = ai.defineTool(
     {
@@ -137,7 +111,7 @@ You are "The Student Mentor," an AI-Powered Personal Guide, Manager, and Learnin
 * **When suggesting resources:** Ensure the resource is highly relevant to the user's specific topic (e.g., if they ask about 'Python lists', suggest a video on 'Python List Comprehensions').
 `,
         prompt: input.prompt,
-        history: input.history,
+        history: input.history as ChatMessage[],
         tools: availableTools,
         toolConfig: {
             // Configure the tool to automatically call the provided functions

@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Loader2, BrainCircuit, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
-import type { ChatMessage } from '@/ai/flows/chat-flow';
+import type { ChatMessage } from '@/ai/flows/types';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import {
