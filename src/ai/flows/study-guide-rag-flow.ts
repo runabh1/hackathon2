@@ -37,7 +37,7 @@ const ragPrompt = ai.definePrompt(
       "{{query}}"
   
       Based on the context above, answer the user's question. If the context does not contain the answer, state that you cannot answer based on the provided materials. Do not use any outside knowledge.`,
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: 'googleai/gemini-1.5-flash',
       config: { temperature: 0.1 },
     },
 );
