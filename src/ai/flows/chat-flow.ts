@@ -39,6 +39,11 @@ export const ChatInputSchema = z.object({
 });
 export type ChatInput = z.infer<typeof ChatInputSchema>;
 
+// Input/Output types for other flows, consolidated here
+// to avoid exporting types from 'use server' files.
+export type { CareerInsightsInput, CareerInsightsOutput } from './career-insights-flow';
+export type { LearningRecommendationInput, LearningRecommendationOutput } from './learning-recommendation-flow';
+
 
 const getRAGAnswerTool = ai.defineTool(
     {
