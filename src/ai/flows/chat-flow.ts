@@ -43,6 +43,7 @@ export type ChatInput = z.infer<typeof ChatInputSchema>;
 // to avoid exporting types from 'use server' files.
 export type { CareerInsightsInput, CareerInsightsOutput } from './career-insights-flow';
 export type { LearningRecommendationInput, LearningRecommendationOutput } from './learning-recommendation-flow';
+export type { StudyGuideRAGInput, StudyGuideRAGOutput } from './study-guide-rag-flow';
 
 
 const getRAGAnswerTool = ai.defineTool(

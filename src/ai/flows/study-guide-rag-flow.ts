@@ -1,27 +1,26 @@
+
 'use server';
 /**
  * @fileOverview The core RAG flow for answering study questions.
  * This flow now takes context as an argument and does not access the database.
  *
  * - studyGuideRAG - The main RAG flow function.
- * - StudyGuideRAGInput - The input type for the function.
- * - StudyGuideRAGOutput - The return type for the function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import type { StudyGuideRAGInput, StudyGuideRAGOutput } from './chat-flow';
 
-// --- Schemas ---
-export const StudyGuideRAGInputSchema = z.object({
+
+// --- Schemas for internal use, types are imported from chat-flow ---
+const StudyGuideRAGInputSchema = z.object({
   query: z.string().describe("The student's question."),
   context: z.array(z.string()).describe("A list of relevant text chunks from study materials.")
 });
-export type StudyGuideRAGInput = z.infer<typeof StudyGuideRAGInputSchema>;
 
-export const StudyGuideRAGOutputSchema = z.object({
+const StudyGuideRAGOutputSchema = z.object({
   answer: z.string().describe('The context-aware answer.'),
 });
-export type StudyGuideRAGOutput = z.infer<typeof StudyGuideRAGOutputSchema>;
 
 
 // --- Main Flow & Exported Function ---
