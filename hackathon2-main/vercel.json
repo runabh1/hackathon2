@@ -1,0 +1,14 @@
+
+{
+  "functions": {
+    "src/app/api/genkit/**": {
+      "maxDuration": 60
+    },
+    "src/app/api/index-file/**": {
+      "maxDuration": 60
+    },
+    "src/app/api/study-chat/**": {
+      "maxDuration": 60
+    }
+  }
+}
